@@ -54,7 +54,7 @@
               ></v-autocomplete>
               
               <!-- Вид заявки -->
-              <v-autocomplete
+              <!--<v-autocomplete
                 v-model="formData.view"
                 :items="requestViewOptions"
                 label="Вид заявки"
@@ -65,15 +65,15 @@
                 variant="outlined"
                 required
                 class="mb-4"
-              ></v-autocomplete>
+              ></v-autocomplete>-->
               
-              <!-- Объект НСИ -->
+              <!-- Объект MDM -->
               <v-autocomplete
                 v-model="formData.object"
                 :items="filteredNsiObjectOptions"
-                label="Объект НСИ"
-                placeholder="Выберите объект НСИ..."
-                :rules="[v => !!v || 'Объект НСИ обязателен']"
+                label="Объект MDM"
+                placeholder="Выберите объект MDM..."
+                :rules="[v => !!v || 'Объект MDM обязателен']"
                 item-title="title"
                 item-value="id"
                 variant="outlined"
@@ -111,21 +111,7 @@
                   class="mb-4"
                 ></v-autocomplete>
               </div>
-              
-              <!-- Срочность -->
-              <v-autocomplete
-                v-model="formData.urgency"
-                :items="urgencyOptions"
-                label="Срочность"
-                placeholder="Выберите срочность..."
-                :rules="[v => !!v || 'Срочность обязательна']"
-                item-title="title"
-                item-value="id"
-                variant="outlined"
-                required
-                class="mb-4"
-              ></v-autocomplete>
-              
+
               <!-- Комментарий -->
               <v-textarea
                 v-model="formData.comment"
@@ -322,6 +308,8 @@
                         <v-autocomplete
                           v-model="formData.registrationCountry"
                           :items="registrationCountryOptions"
+                          item-title="NAME"
+                          item-value="NAME"
                           label="Страна регистрации"
                           placeholder="Выберите страну регистрации..."
                           :rules="[v => !!v || 'Страна регистрации обязательна']"
@@ -1330,8 +1318,8 @@
             label="Валюта"
             placeholder="Выберите валюту..."
             :rules="[v => !!v || 'Валюта обязательна']"
-            item-title="title"
-            item-value="id"
+            item-title="FULL_NAME"
+            item-value="CURRENCY"
             variant="outlined"
             required
             class="mb-4"
@@ -2071,8 +2059,8 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, watch } from 'vue'
-import { callApi } from '../functions/callApi'
+import { ref, computed, reactive, onMounted } from 'vue'
+import { callApi, getListElements } from '../functions/callApi'
 
 // Состояние формы
 const currentStep = ref(1)
@@ -2088,7 +2076,6 @@ const formData = reactive({
   type: null, // '16931', '16933', '16935'
   view: '',
   object: '',
-  urgency: '',
   comment: '',
   
   // Общие поля для шага 1
@@ -2154,7 +2141,7 @@ const formData = reactive({
   financialGroup: '',
   ddsArticle: '',
   debtClassification: '',
-  vatDeclarationOperation: '',
+  vatDeclarationOperation: 0,
   activityDirection: '',
   
   // Поля для Банковских счетов
@@ -2223,15 +2210,13 @@ const requestTypeOptions = ref([
 ])
 const nsiObjectOptions = ref([]);
 const filteredNsiObjectOptions = computed(() => {
-  const excludedIds = ['Механики акций', 'Прайс-листы', 'Скидки (наценки)']; // Массив ID, которые нужно исключить
+  const excludedIds = [];//['Механики акций', 'Прайс-листы', 'Скидки (наценки)']; // Массив ID, которые нужно исключить
   return nsiObjectOptions.value.filter(option => !excludedIds.includes(option.title));
 });
 const requestViewOptions = ref([
   { id: '16943', title: 'Индивидуальный', bitrixId: '16943' },
   { id: '16945', title: 'Групповой', bitrixId: '16945' }
 ])
-
-const urgencyOptions = ref([])
 
 // Опции для Контрагентов
 const counterpartyTypeOptions = ref([
@@ -2366,15 +2351,26 @@ const contractPurposeOptions = ref([
 ])
 
 const organizationOptions = ref([
-  { id: 'orthonica', title: 'ООО Ортоника' },
-  { id: 'td_orthonica', title: 'ООО Торговый дом Ортоника' },
-  { id: 'control_systems', title: 'ООО Системы управления' },
-  { id: 'ip_nikofontov', title: 'ИП Никофонтов' }
+  { id: '0', title: 'Нифонтов Александр Викторович ИП' },
+  { id: '1', title: 'ОРТОНИКА МАРКЕТ ООО' },
+  { id: '2', title: 'ОРТОНИКА ООО' },
+  { id: '3', title: 'ОРТОНИКА ПЛЮС ООО' },
+  { id: '4', title: 'РА (ՌԵԱՄԵԴ ՍՊԸ)' },
+  { id: '5', title: 'РГ (Circle Logistics LLC)' },
+  { id: '6', title: 'РЕАМЕД ООО' },
+  { id: '7', title: 'СИСТЕМЫ УПРАВЛЕНИЯ ООО' },
+  { id: '8', title: 'СУРДЭКС ООО' },
+  { id: '9', title: 'ТД ОРТОНИКА ООО' },
+  { id: '10', title: 'Терехов Кирилл Владимирович ИП' },
+  { id: '11', title: 'ИНВАТОРГ ООО' },
 ])
 
 const paymentDetailsOptions = ref([
-  { id: 'not_withdrawn', title: 'Не выбывает из оборота' },
-  { id: 'withdrawn_for_own_needs', title: 'Выбывает из оборота по причине исп. покупателем для собственных нужд' }
+  { id: '0', title: 'По заказам' },
+  { id: '1', title: 'По договорам' },
+  { id: '2', title: 'Аванс по договорам, долг по накладным' },
+  { id: '3', title: 'Аванс по заказам, долг по накладным' },
+  { id: '4', title: 'По расчетным документам' },
 ])
 
 const currencyOptions = ref([
@@ -2391,20 +2387,19 @@ const labeledProductsOptions = ref([
 ])
 
 const vatRateOptions = ref([
-  { id: 'vat20', title: 'НДС 20%' },
-  { id: 'vat10', title: 'НДС 10%' },
-  { id: 'no_vat', title: 'Без НДС' },
-  { id: 'vat_exempt', title: 'НДС не облагается' }
+  { id: '0', title: 'Без НДС' },
+  { id: '1', title: '0' },
+  { id: '2', title: '5' },
+  { id: '3', title: '7' },
+  { id: '4', title: '10' },
+  { id: '5', title: '18' },
+  { id: '6', title: '20' },
+  { id: '7', title: '22' },
 ])
 
 const financialGroupOptions = ref([
-  { id: '76.07_rent', title: '76.07 - Аренда' },
-  { id: '76.07_rent_vehicles', title: '76.07 - Аренда ТС и оборудования' },
-  { id: '76.09_security', title: '76.09 - Расчеты по обеспечению ГИ и ГО' },
-  { id: '76.10_individuals', title: '76.10 - Прочие расчеты с физическими лицами' },
-  { id: '76.35_currency_suppliers', title: '76.35 - Поставщики обеспечение и услуги (в валюте)' },
+  { id: '55.03_deposits_rub', title: '55.03 - Депозиты в рублях' },
   { id: '58.03_loans_given', title: '58.03 - Займы выданные' },
-  { id: '60_processing', title: '60 - услуги по переработке' },
   { id: '60.01_rub_suppliers', title: '60.01 - поставщики в рублях' },
   { id: '60.21_currency_suppliers', title: '60.21 - Поставщики в валюте' },
   { id: '62_currency_customers', title: '62 - Покупатели в валюте' },
@@ -2414,13 +2409,29 @@ const financialGroupOptions = ref([
   { id: '76.02_claims_suppliers', title: '76.02 - Расчеты по претензиям с поставщиками' },
   { id: '76.05_suppliers', title: '76.05 - Поставщики обеспечение и услуги' },
   { id: '76.06_co_executors', title: '76.06 - Соисполнители (СИ)' },
-  { id: '55.03_deposits_rub', title: '55.03 - Депозиты в рублях' }
+  { id: '76.07_rent', title: '76.07 - Аренда' },
+  { id: '76.07_rent_vehicles', title: '76.07 - Аренда ТС и оборудования' },
+  { id: '76.09_security', title: '76.09 - Расчеты по обеспечению ГИ и ГО' },
+  { id: '76.10_individuals', title: '76.10 - Прочие расчеты с физическими лицами' },
+  { id: '76.35_currency_suppliers', title: '76.35 - Поставщики обеспечение и услуги (в валюте)' },
+  //{ id: '60_processing', title: '60 - услуги по переработке' },
 ])
 
 const ddsArticleOptions = ref([
-  { id: 'option1', title: 'Вариант 1' },
-  { id: 'option2', title: 'Вариант 2' },
-  { id: 'option3', title: 'Вариант 3' }
+  { id: '0', title: 'Аренда производственных мощностей и коммунальные услуги' },
+  { id: '1', title: 'Аренда складского и производственного имущества' },
+  { id: '2', title: 'Доходы от аренды имущества' },
+  { id: '3', title: 'Доходы от прочей деятельности' },
+  { id: '4', title: 'Доходы от соисполнительства' },
+  { id: '5', title: 'Интеркомпани' },
+  { id: '6', title: 'Обеспечение гарантийных обязательств (оборот)' },
+  { id: '7', title: 'Обеспечение ГК (оборот)' },
+  { id: '8', title: 'оступления от покупателей' },
+  { id: '9', title: 'Прочие' },
+  { id: '10', title: 'Санкции по продажам и ГК (доходы)' },
+  { id: '11', title: 'Услуги по переработке (доходы)' },
+  { id: '12', title: 'Аренда офиса' },
+  { id: '13', title: 'Коммунальные услуги' },
 ])
 
 const debtClassificationOptions = ref([
@@ -2429,9 +2440,7 @@ const debtClassificationOptions = ref([
 ])
 
 const vatDeclarationOperationOptions = ref([
-  { id: 'option1', title: 'Вариант 1' },
-  { id: 'option2', title: 'Вариант 2' },
-  { id: 'option3', title: 'Вариант 3' }
+  { id: '0', title: 'Реализация медицинских товаров отечественного и зарубежного производства по перечню, утверждаемому Правительством РФ' },
 ])
 
 // Опции для Банковских счетов
@@ -2453,9 +2462,8 @@ const warehouseTypeOptions = ref([
 ])
 
 const priceSourceOptions = ref([
-  { id: 'option1', title: 'Вариант 1' },
-  { id: 'option2', title: 'Вариант 2' },
-  { id: 'option3', title: 'Вариант 3' }
+  { id: 'option1', title: 'По виду цен' },
+  { id: 'option2', title: 'По себестоимости' },
 ])
 
 // Опции для Упаковок
@@ -2777,11 +2785,73 @@ const handleBankTypeChange = (value) => {
   formData.accountNumber = ''
   formData.correspondentAccount = ''
 }
-
+const hasAtLeastOneFieldForModification = () => {
+  if (formData.type !== '16933') return true
+  
+  // Проверяем наличие хотя бы одного заполненного поля в зависимости от объекта
+  if (formData.object === '16937') { // Контрагенты
+    // Проверяем поля для изменения контрагента
+    const modificationFields = [
+      formData.partnerCode,
+      formData.partner,
+      formData.actualAddress,
+      formData.legalAddress
+    ]
+    return modificationFields.some(field => field && field.trim() !== '')
+  } 
+  else if (formData.object === '16939') { // Партнеры
+    // Проверяем поля для изменения партнера
+    if (formData.partnerType === '16961') { // КП
+      const modificationFieldsKP = [
+        formData.name,
+        formData.legalAddress,
+        formData.actualAddress
+      ]
+      return modificationFieldsKP.some(field => field && field.trim() !== '')
+    } 
+    else if (formData.partnerType === '16963') { // ЧЛ
+      const modificationFieldsCHL = [
+        formData.name,
+        formData.phone,
+        formData.email
+      ]
+      return modificationFieldsCHL.some(field => field && field.trim() !== '')
+    }
+  }
+  // Для других объектов НСИ
+  else if (formData.object === '16941') { // Банковские счета
+    const modificationFieldsBank = [
+      formData.bik,
+      formData.swift,
+      formData.bankName,
+      formData.accountNumber,
+      formData.correspondentAccount
+    ]
+    return modificationFieldsBank.some(field => field && field.trim() !== '')
+  }
+  else if (formData.object === '16945') { // Склады
+    const modificationFieldsWarehouse = [
+      formData.warehouseName,
+      formData.warehouseAddress,
+      formData.warehousePhone
+    ]
+    return modificationFieldsWarehouse.some(field => field && field.trim() !== '')
+  }
+  else if (formData.object === '16947') { // Упаковки
+    const modificationFieldsPackage = [
+      formData.nomenclature,
+      formData.additionalInfo,
+      formData.weight
+    ]
+    return modificationFieldsPackage.some(field => field && field.trim() !== '')
+  }
+  
+  return false
+}
 // Проверка возможности перехода на следующий шаг
 const canGoToNextStep = computed(() => {
   if (currentStep.value === 1) {
-    const basicFields = !!formData.type && !!formData.view && !!formData.object && !!formData.urgency
+    const basicFields = !!formData.type && !!formData.object //!!formData.view && 
     
     if (formData.object === '16937') { // Контрагенты
       return basicFields && !!formData.counterpartyType
@@ -2802,7 +2872,16 @@ const canGoToNextStep = computed(() => {
       }
     } else if (formData.type === '16933') { // Изменение
       if (currentStep.value === 2) {
-        return !!formData.counterpartyCode && !!formData.inn && !!formData.name
+        // Проверяем, что хотя бы одно поле поиска заполнено
+        const searchFields = [
+          formData.counterpartyCode,
+          formData.inn,
+          formData.name
+        ]
+        return searchFields.some(field => field && field.trim() !== '')
+      } else if (currentStep.value === 3) {
+        // Проверяем, что хотя бы одно поле для изменения заполнено
+        return hasAtLeastOneFieldForModification()
       }
     } else if (formData.type === '16935') { // Ошибка
       if (currentStep.value === 2) {
@@ -2820,11 +2899,47 @@ const canGoToNextStep = computed(() => {
       }
     } else if (formData.type === '16933') { // Изменение
       if (currentStep.value === 2) {
-        return !!formData.partnerCode && !!formData.partner
+        // Проверяем, что хотя бы одно поле поиска заполнено
+        const searchFields = [
+          formData.partnerCode,
+          formData.partner
+        ]
+        return searchFields.some(field => field && field.trim() !== '')
+      } else if (currentStep.value === 3) {
+        // Проверяем, что хотя бы одно поле для изменения заполнено
+        return hasAtLeastOneFieldForModification()
       }
     } else if (formData.type === '16935') { // Ошибка
       if (currentStep.value === 2) {
         return !!formData.errorDescription
+      }
+    }
+  }
+ else if (formData.object === '16943') { // Договоры
+    if (formData.type === '16933') { // Изменение
+      if (currentStep.value === 2) {
+        return hasAtLeastOneFieldForModification()
+      }
+    }
+  }
+  else if (formData.object === '16941') { // Банковские счета
+    if (formData.type === '16933') { // Изменение
+      if (currentStep.value === 3) {
+        return hasAtLeastOneFieldForModification()
+      }
+    }
+  }
+  else if (formData.object === '16945') { // Склады
+    if (formData.type === '16933') { // Изменение
+      if (currentStep.value === 3) {
+        return hasAtLeastOneFieldForModification()
+      }
+    }
+  }
+  else if (formData.object === '16947') { // Упаковки
+    if (formData.type === '16933') { // Изменение
+      if (currentStep.value === 3) {
+        return hasAtLeastOneFieldForModification()
       }
     }
   }
@@ -2939,11 +3054,6 @@ const getNsiObjectTitle = (id) => {
   return item ? item.title : ''
 }
 
-const getUrgencyTitle = (id) => {
-  const item = urgencyOptions.value.find(item => item.id === id)
-  return item ? item.title : ''
-}
-
 const getCounterpartyTypeTitle = (id) => {
   const item = counterpartyTypeOptions.value.find(item => item.id === id)
   return item ? item.title : ''
@@ -2960,17 +3070,15 @@ const getAllRequestFields = () => {
   
   // Основные поля
   fields.push(`Тип заявки: ${getRequestTypeTitle(formData.type)}`)
-  fields.push(`Вид заявки: ${getRequestViewTitle(formData.view)}`)
-  fields.push(`Объект НСИ: ${getNsiObjectTitle(formData.object)}`)
+  //fields.push(`Вид заявки: ${getRequestViewTitle(formData.view)}`)
+  fields.push(`Объект MDM: ${getNsiObjectTitle(formData.object)}`)
   
   if (formData.object === '16937') { // Контрагенты
     fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.counterpartyType)}`)
   } else if (formData.object === '16939') { // Партнеры
     fields.push(`Вид партнера: ${getPartnerTypeTitle(formData.partnerType)}`)
   }
-  
-  fields.push(`Срочность: ${getUrgencyTitle(formData.urgency)}`)
-  
+
   if (formData.comment) {
     fields.push(`Комментарий: ${formData.comment}`)
   }
@@ -3237,6 +3345,11 @@ onMounted(async () => {
   await loadBitrixOptions()
 })
 
+const loadCurrencies = async() => {
+  currencyOptions.value = await callApi("crm.currency.list", null, null);
+  registrationCountryOptions.value = await getListElements(459, null, null);
+}
+
 // Функция загрузки опций из Bitrix
 const loadBitrixOptions = async () => {
   isLoadingRequestTypes.value = true
@@ -3247,9 +3360,9 @@ const loadBitrixOptions = async () => {
       return
     }
     
-    const fields = await getSmartProcessFields()
-    updateOptionsFromBitrixFields(fields)
-
+    const fields = await getSmartProcessFields();
+    updateOptionsFromBitrixFields(fields);
+    loadCurrencies();
   } catch (error) {
     console.error('Ошибка при загрузке опций из Bitrix:', error)
     submitStatus.value = {
@@ -3285,18 +3398,14 @@ const updateOptionsFromBitrixFields = async(fields) => {
     'ufCrm63_1765788575681': { // Тип заявки
       target: requestTypeOptions,
       title: 'Тип заявки'
-    },
+    },/*
     'ufCrm63_1765184921808': { // Вид заявки
       target: requestViewOptions,
       title: 'Вид заявки'
-    },
-    'ufCrm63_1765789339357': { // Объект НСИ
+    },*/
+    'ufCrm63_1765789339357': { // Объект MDM
       target: nsiObjectOptions,
-      title: 'Объект НСИ'
-    },
-    'ufCrm63_1765789435641': { // Срочность
-      target: urgencyOptions,
-      title: 'Срочность'
+      title: 'Объект MDM'
     },
     'ufCrm63_1766580111': { // Вид контрагента
       target: counterpartyTypeOptions,
@@ -3329,9 +3438,7 @@ const updateOptionsFromBitrixFields = async(fields) => {
   console.log(businessRegionOptions.value);
   console.log('Все обработанные опции:');
   console.log('- Тип заявки:', requestTypeOptions.value);
-  console.log('- Вид заявки:', requestViewOptions.value);
-  console.log('- Объект НСИ:', nsiObjectOptions.value);
-  console.log('- Срочность:', urgencyOptions.value);
+  console.log('- Объект MDM:', nsiObjectOptions.value);
   console.log('- Вид контрагента:', counterpartyTypeOptions.value);
 }
 const encodeFilesToBase64 = (files) => {
@@ -3364,7 +3471,6 @@ const createBitrixRequest = async () => {
         'ufCrm63_1765788575681': formData.type,
         'ufCrm63_1765184921808': formData.view,
         'ufCrm63_1765789339357': formData.object,
-        'ufCrm63_1765789435641': formData.urgency,
         'ufCrm63_1765184971082': getAllRequestFields() || '',
       }
     }
