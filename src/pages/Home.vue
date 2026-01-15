@@ -3,11 +3,6 @@
     <v-main>
       <v-container fluid class="pa-0">
         <v-card class="mx-auto" flat>
-          <!-- Заголовок формы -->
-          <v-card-title class="text-center text-h5 pa-6 bg-primary">
-            <span class="text-white">Форма заявки НСИ</span>
-          </v-card-title>
-          
           <!-- Динамический индикатор шагов -->
           <v-stepper v-model="currentStep" class="mb-4" alt-labels>
             <v-stepper-header class="px-0">
@@ -27,15 +22,6 @@
             
             <!-- Шаг 1: Основные данные (общие поля для всех типов) -->
             <div v-if="currentStep === 1">
-              <!-- Дата заявки (автозаполнение) -->
-              <v-text-field
-                v-model="formData.date"
-                label="Дата заявки"
-                variant="outlined"
-                readonly
-                class="mb-4"
-              ></v-text-field>
-              
               <!-- Тип заявки -->
               <v-autocomplete
                 v-model="formData.type"
@@ -151,9 +137,344 @@
                   </template>
                   {{ stepData.title }}
                 </v-alert>
+<div v-if="formData.object === '17961'">
+                  <!-- Шаг 2: Данные контрагента -->
+                  <div v-if="stepData.stepNumber === 2">
+                    <h3 class="text-h6 mb-4">Данные контрагента</h3>
+                    
+                    <v-autocomplete
+                      v-model="formData.complexCounterpartyType"
+                      :items="counterpartyTypeOptions"
+                      label="Вид контрагента"
+                      placeholder="Выберите вид контрагента..."
+                      :rules="[v => !!v || 'Вид контрагента обязателен']"
+                      variant="outlined"
+                      required
+                      class="mb-4"
+                    ></v-autocomplete>
+                    
+                    <v-text-field
+                      v-model="formData.complexInn"
+                      :label="formData.complexCounterpartyType === '16955' || formData.complexCounterpartyType === '16957' || formData.complexCounterpartyType === '16959' ? 'ИНН (12 символов)' : 'ИНН (10 символов)'"
+                      placeholder="Введите ИНН..."
+                      :rules="getComplexInnRules()"
+                      :maxlength="getComplexInnMaxLength()"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <v-text-field
+                      v-model="formData.complexName"
+                      label="Наименование"
+                      placeholder="Введите наименование..."
+                      :rules="[v => !!v || 'Наименование обязательно']"
+                      :maxlength="100"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Дополнительные поля для контрагента -->
+                    <v-text-field
+                      v-model="formData.complexLegalAddress"
+                      label="Юридический адрес"
+                      placeholder="Введите юридический адрес..."
+                      :rules="[v => !!v || 'Юридический адрес обязателен']"
+                      :maxlength="250"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <v-text-field
+                      v-model="formData.complexPhone"
+                      label="Телефон"
+                      placeholder="Введите телефон..."
+                      :rules="phoneRules"
+                      :maxlength="20"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <v-text-field
+                      v-model="formData.complexEmail"
+                      label="Электронная почта"
+                      placeholder="Введите email..."
+                      :rules="emailRules"
+                      :maxlength="50"
+                      variant="outlined"
+                      counter
+                      class="mb-6"
+                    ></v-text-field>
+                  </div>
+                  
+                  <!-- Шаг 3: Данные договора -->
+                  <div v-if="stepData.stepNumber === 3">
+                    <h3 class="text-h6 mb-4">Данные договора</h3>
+                    
+                    <!-- Цель договора -->
+                    <v-autocomplete
+                      v-model="formData.contractPurpose"
+                      :items="contractPurposeOptions"
+                      label="Цель договора"
+                      placeholder="Выберите цель договора..."
+                      :rules="[v => !!v || 'Цель договора обязательна']"
+                      item-title="title"
+                      item-value="id"
+                      variant="outlined"
+                      required
+                      class="mb-4"
+                    ></v-autocomplete>
+                    
+                    <!-- Номер договора -->
+                    <v-text-field
+                      v-model="formData.contractNumber"
+                      label="Номер договора"
+                      placeholder="Введите номер договора..."
+                      :rules="[v => !!v || 'Номер договора обязателен']"
+                      :maxlength="50"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Дата договора -->
+                    <v-text-field
+                      v-model="formData.contractDate"
+                      label="Дата договора"
+                      type="date"
+                      variant="outlined"
+                      required
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Наименование договора -->
+                    <v-text-field
+                      v-model="formData.contractName"
+                      label="Наименование договора"
+                      placeholder="Введите наименование договора..."
+                      :rules="[v => !!v || 'Наименование договора обязательно']"
+                      :maxlength="150"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Валюта -->
+                    <v-autocomplete
+                      v-model="formData.currency"
+                      :items="currencyOptions"
+                      label="Валюта"
+                      placeholder="Выберите валюту..."
+                      :rules="[v => !!v || 'Валюта обязательна']"
+                      item-title="FULL_NAME"
+                      item-value="CURRENCY"
+                      variant="outlined"
+                      required
+                      class="mb-6"
+                    ></v-autocomplete>
+                  </div>
+                </div>
                 
+                <!-- Для объекта "Комплексное добавление: Партнер + Контрагент + Договор" (17959) -->
+                <div v-else-if="formData.object === '17959'">
+                  <!-- Шаг 2: Данные партнера -->
+                  <div v-if="stepData.stepNumber === 2">
+                    <h3 class="text-h6 mb-4">Данные партнера</h3>
+                    
+                    <v-autocomplete
+                      v-model="formData.complexPartnerType"
+                      :items="partnerTypeOptions"
+                      label="Вид партнера"
+                      placeholder="Выберите вид партнера..."
+                      :rules="[v => !!v || 'Вид партнера обязателен']"
+                      variant="outlined"
+                      required
+                      class="mb-4"
+                    ></v-autocomplete>
+                    
+                    <v-text-field
+                      v-model="formData.complexPartnerName"
+                      label="Наименование партнера"
+                      placeholder="Введите наименование..."
+                      :rules="[v => !!v || 'Наименование обязательно']"
+                      :maxlength="250"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <v-text-field
+                      v-model="formData.complexPartnerCode"
+                      label="Партнер (код)"
+                      placeholder="Введите код партнера..."
+                      :rules="[v => !!v || 'Код партнера обязателен']"
+                      :maxlength="20"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Телефон -->
+                    <v-text-field
+                      v-model="formData.complexPartnerPhone"
+                      label="Телефон"
+                      placeholder="Введите телефон..."
+                      :rules="phoneRules"
+                      :maxlength="25"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Email -->
+                    <v-text-field
+                      v-model="formData.complexPartnerEmail"
+                      label="Электронная почта"
+                      placeholder="Введите email..."
+                      :rules="emailRules"
+                      :maxlength="50"
+                      variant="outlined"
+                      counter
+                      class="mb-6"
+                    ></v-text-field>
+                  </div>
+                  
+                  <!-- Шаг 3: Данные контрагента -->
+                  <div v-if="stepData.stepNumber === 3">
+                    <h3 class="text-h6 mb-4">Данные контрагента</h3>
+                    
+                    <v-autocomplete
+                      v-model="formData.complexCounterpartyType2"
+                      :items="counterpartyTypeOptions"
+                      label="Вид контрагента"
+                      placeholder="Выберите вид контрагента..."
+                      :rules="[v => !!v || 'Вид контрагента обязателен']"
+                      variant="outlined"
+                      required
+                      class="mb-4"
+                    ></v-autocomplete>
+                    
+                    <v-text-field
+                      v-model="formData.complexCounterpartyInn"
+                      :label="formData.complexCounterpartyType2 === '16955' || formData.complexCounterpartyType2 === '16957' || formData.complexCounterpartyType2 === '16959' ? 'ИНН (12 символов)' : 'ИНН (10 символов)'"
+                      placeholder="Введите ИНН..."
+                      :rules="getComplexCounterpartyInnRules()"
+                      :maxlength="getComplexCounterpartyInnMaxLength()"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <v-text-field
+                      v-model="formData.complexCounterpartyName"
+                      label="Наименование контрагента"
+                      placeholder="Введите наименование..."
+                      :rules="[v => !!v || 'Наименование обязательно']"
+                      :maxlength="100"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <v-text-field
+                      v-model="formData.complexCounterpartyLegalAddress"
+                      label="Юридический адрес"
+                      placeholder="Введите юридический адрес..."
+                      :rules="[v => !!v || 'Юридический адрес обязателен']"
+                      :maxlength="250"
+                      variant="outlined"
+                      counter
+                      class="mb-6"
+                    ></v-text-field>
+                  </div>
+                  
+                  <!-- Шаг 4: Данные договора -->
+                  <div v-if="stepData.stepNumber === 4">
+                    <h3 class="text-h6 mb-4">Данные договора</h3>
+                    
+                    <!-- Цель договора -->
+                    <v-autocomplete
+                      v-model="formData.complexContractPurpose"
+                      :items="contractPurposeOptions"
+                      label="Цель договора"
+                      placeholder="Выберите цель договора..."
+                      :rules="[v => !!v || 'Цель договора обязательна']"
+                      item-title="title"
+                      item-value="id"
+                      variant="outlined"
+                      required
+                      class="mb-4"
+                    ></v-autocomplete>
+                    
+                    <!-- Номер договора -->
+                    <v-text-field
+                      v-model="formData.complexContractNumber"
+                      label="Номер договора"
+                      placeholder="Введите номер договора..."
+                      :rules="[v => !!v || 'Номер договора обязателен']"
+                      :maxlength="50"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Дата договора -->
+                    <v-text-field
+                      v-model="formData.complexContractDate"
+                      label="Дата договора"
+                      type="date"
+                      variant="outlined"
+                      required
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Наименование договора -->
+                    <v-text-field
+                      v-model="formData.complexContractName"
+                      label="Наименование договора"
+                      placeholder="Введите наименование договора..."
+                      :rules="[v => !!v || 'Наименование договора обязательно']"
+                      :maxlength="150"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-text-field>
+                    
+                    <!-- Валюта -->
+                    <v-autocomplete
+                      v-model="formData.complexCurrency"
+                      :items="currencyOptions"
+                      label="Валюта"
+                      placeholder="Выберите валюту..."
+                      :rules="[v => !!v || 'Валюта обязательна']"
+                      item-title="FULL_NAME"
+                      item-value="CURRENCY"
+                      variant="outlined"
+                      required
+                      class="mb-6"
+                    ></v-autocomplete>
+                    
+                    <!-- Файлы -->
+                    <v-file-input
+                      v-model="formData.complexHasFile"
+                      label="Прикрепить файлы"
+                      multiple
+                      chips
+                      counter
+                      show-size
+                      prepend-icon="mdi-paperclip"
+                      :rules="fileRules"
+                      variant="outlined"
+                      class="mb-6"
+                    ></v-file-input>
+                  </div>
+                </div>
+
                 <!-- Поля для объекта "Контрагенты" -->
-                <div v-if="formData.object === '16937'">
+                <div v-else-if="formData.object === '16937'">
                   <!-- Поля для добавления контрагента -->
                   <div v-if="formData.type === '16931'">
                     <!-- Шаг 2: Основные данные контрагента -->
@@ -372,7 +693,8 @@
                       <v-text-field
                         v-model="formData.phone"
                         label="Телефон"
-                        placeholder="Введите телефон..."
+                        v-mask="'+7 (###) ###-##-##'"
+                        placeholder="+7 (___) ___-__-__"
                         :rules="phoneRules"
                         :maxlength="20"
                         variant="outlined"
@@ -581,7 +903,8 @@
                             <v-text-field
                               v-model="formData.phone"
                               label="Телефон"
-                              placeholder="Введите телефон..."
+                              v-mask="'+7 (###) ###-##-##'"
+                              placeholder="+7 (___) ___-__-__"
                               :rules="phoneRules"
                               :maxlength="25"
                               variant="outlined"
@@ -809,7 +1132,8 @@
                             <v-text-field
                               v-model="formData.phone"
                               label="Телефон"
-                              placeholder="Введите телефон..."
+                              v-mask="'+7 (###) ###-##-##'"
+                              placeholder="+7 (___) ___-__-__"
                               :rules="phoneRules"
                               :maxlength="25"
                               variant="outlined"
@@ -1077,7 +1401,8 @@
                         <v-text-field
                           v-model="formData.phone"
                           label="Телефон"
-                          placeholder="Введите телефон..."
+                          v-mask="'+7 (###) ###-##-##'"
+                          placeholder="+7 (___) ___-__-__"
                           :maxlength="25"
                           variant="outlined"
                           counter
@@ -2011,6 +2336,167 @@
           ></v-text-field>
         </div>
       </div>
+      <div v-else-if="formData.object === '16959'">
+        <!-- Шаг 2: Данные скидки -->
+        <div v-if="stepData.stepNumber === 2">
+          <h3 class="text-h6 mb-4">Данные скидки</h3>
+          
+          <!-- Номенклатура (код) -->
+          <v-text-field
+            v-model="formData.discountNomenclatureCode"
+            label="Номенклатура (код)"
+            placeholder="Введите код номенклатуры..."
+            :rules="[v => !!v || 'Код номенклатуры обязателен']"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="mb-4"
+          ></v-text-field>
+          
+          <!-- Номенклатура (наименование) -->
+          <v-text-field
+            v-model="formData.discountNomenclatureName"
+            label="Номенклатура (наименование)"
+            placeholder="Введите наименование номенклатуры..."
+            :rules="[v => !!v || 'Наименование номенклатуры обязательно']"
+            :maxlength="250"
+            variant="outlined"
+            counter
+            class="mb-4"
+          ></v-text-field>
+          
+          <!-- Механика (вид цены, %, кол-во) -->
+          <v-select
+            v-model="formData.discountMechanics"
+            :items="discountMechanicsOptions"
+            label="Механика (вид цены, %, кол-во)"
+            placeholder="Выберите механику скидки..."
+            :rules="[v => !!v || 'Механика скидки обязательна']"
+            item-title="title"
+            item-value="id"
+            variant="outlined"
+            required
+            class="mb-4"
+          ></v-select>
+          
+          <!-- Цена до акции -->
+          <v-text-field
+            v-model="formData.priceBeforeDiscount"
+            label="Цена до акции"
+            placeholder="Введите цену до акции..."
+            :rules="priceRules"
+            type="number"
+            step="0.01"
+            variant="outlined"
+            class="mb-4"
+          ></v-text-field>
+          
+          <!-- Цена по акции -->
+          <v-text-field
+            v-model="formData.priceWithDiscount"
+            label="Цена по акции"
+            placeholder="Введите цену по акции..."
+            :rules="priceRules"
+            type="number"
+            step="0.01"
+            variant="outlined"
+            class="mb-4"
+          ></v-text-field>
+          
+          <!-- Дополнительный комментарий -->
+          <v-textarea
+            v-model="formData.discountComment"
+            label="Дополнительный комментарий"
+            placeholder="Введите дополнительный комментарий..."
+            :maxlength="500"
+            rows="3"
+            variant="outlined"
+            counter
+            class="mb-4"
+          ></v-textarea>
+        </div>
+      </div>
+
+      <div v-else-if="formData.object === '16961'">
+        <!-- Шаг 2: Данные цены -->
+        <div v-if="stepData.stepNumber === 2">
+          <h3 class="text-h6 mb-4">Данные цены</h3>
+          
+          <!-- Номенклатура (код) -->
+          <v-text-field
+            v-model="formData.priceNomenclatureCode"
+            label="Номенклатура (код)"
+            placeholder="Введите код номенклатуры..."
+            :rules="[v => !!v || 'Код номенклатуры обязателен']"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="mb-4"
+          ></v-text-field>
+          
+          <!-- Номенклатура (наименование) -->
+          <v-text-field
+            v-model="formData.priceNomenclatureName"
+            label="Номенклатура (наименование)"
+            placeholder="Введите наименование номенклатуры..."
+            :rules="[v => !!v || 'Наименование номенклатуры обязательно']"
+            :maxlength="250"
+            variant="outlined"
+            counter
+            class="mb-4"
+          ></v-text-field>
+          
+          <!-- Вид цены -->
+          <v-select
+            v-model="formData.priceType"
+            :items="priceTypeOptions"
+            label="Вид цены"
+            placeholder="Выберите вид цены..."
+            :rules="[v => !!v || 'Вид цены обязателен']"
+            item-title="title"
+            item-value="id"
+            variant="outlined"
+            required
+            class="mb-4"
+          ></v-select>
+          
+          <!-- Цена ДО -->
+          <v-text-field
+            v-model="formData.priceBefore"
+            label="Цена ДО"
+            placeholder="Введите цену ДО..."
+            :rules="priceRules"
+            type="number"
+            step="0.01"
+            variant="outlined"
+            class="mb-4"
+          ></v-text-field>
+          
+          <!-- Цена ПОСЛЕ -->
+          <v-text-field
+            v-model="formData.priceAfter"
+            label="Цена ПОСЛЕ"
+            placeholder="Введите цену ПОСЛЕ..."
+            :rules="priceRules"
+            type="number"
+            step="0.01"
+            variant="outlined"
+            class="mb-4"
+          ></v-text-field>
+          
+          <!-- Дополнительный комментарий -->
+          <v-textarea
+            v-model="formData.priceComment"
+            label="Дополнительный комментарий"
+            placeholder="Введите дополнительный комментарий..."
+            :maxlength="500"
+            rows="3"
+            variant="outlined"
+            counter
+            class="mb-4"
+          ></v-textarea>
+        </div>
+      </div>
                 <!-- Поля для других объектов НСИ -->
                 <div v-else>
                   <!-- Поля для банковских счетов или других объектов -->
@@ -2061,7 +2547,9 @@
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
 import { callApi, getListElements } from '../functions/callApi'
+import { mask } from 'vue-the-mask'
 
+const vMask = mask
 // Состояние формы
 const currentStep = ref(1)
 const formValid = ref(false)
@@ -2077,7 +2565,32 @@ const formData = reactive({
   view: '',
   object: '',
   comment: '',
+// Поля для объекта 17961 (Контрагент + Договор)
+  complexCounterpartyType: null,
+  complexInn: '',
+  complexName: '',
+  complexLegalAddress: '',
+  complexPhone: '',
+  complexEmail: '',
   
+  // Поля для объекта 17959 (Партнер + Контрагент + Договор)
+  complexPartnerType: null,
+  complexPartnerName: '',
+  complexPartnerCode: '',
+  complexPartnerPhone: '',
+  complexPartnerEmail: '',
+  
+  complexCounterpartyType2: null,
+  complexCounterpartyInn: '',
+  complexCounterpartyName: '',
+  complexCounterpartyLegalAddress: '',
+  
+  complexContractPurpose: '',
+  complexContractNumber: '',
+  complexContractDate: '',
+  complexContractName: '',
+  complexCurrency: '',
+  complexHasFile: null,
   // Общие поля для шага 1
   counterpartyType: null, // Для Контрагентов
   partnerType: null, // Для Партнеров
@@ -2188,7 +2701,21 @@ const formData = reactive({
   // Множественные поля
   additionalPhones: [],
   additionalEmails: [],
-  
+  // Поля для Скидок (16959)
+  discountNomenclatureCode: '',
+  discountNomenclatureName: '',
+  discountMechanics: '',
+  priceBeforeDiscount: '',
+  priceWithDiscount: '',
+  discountComment: '',
+
+  // Поля для Цен (16961)
+  priceNomenclatureCode: '',
+  priceNomenclatureName: '',
+  priceType: '',
+  priceBefore: '',
+  priceAfter: '',
+  priceComment: '',
   // Поля для шага 3
   partner: '',
   partnerCode: '',
@@ -2477,6 +3004,53 @@ const nomenclatureCodeOptions = ref([
 
 // Настройки шагов для каждого типа заявки и объекта НСИ
 const stepConfigs = {
+'17961': {
+    '16931': { // Добавление
+      steps: [
+        { stepNumber: 2, title: 'Данные контрагента', subtitle: 'Шаг 2' },
+        { stepNumber: 3, title: 'Данные договора', subtitle: 'Шаг 3' }
+      ],
+      totalSteps: 3
+    },
+    '16933': { // Изменение
+      steps: [
+        { stepNumber: 2, title: 'Поиск данных', subtitle: 'Шаг 2' },
+        { stepNumber: 3, title: 'Изменение данных', subtitle: 'Шаг 3' }
+      ],
+      totalSteps: 3
+    },
+    '16935': { // Ошибка
+      steps: [
+        { stepNumber: 2, title: 'Описание ошибки', subtitle: 'Шаг 2' }
+      ],
+      totalSteps: 2
+    }
+  },
+  
+  // Для объекта "Комплексное добавление: Партнер + Контрагент + Договор" (17959)
+  '17959': {
+    '16931': { // Добавление
+      steps: [
+        { stepNumber: 2, title: 'Данные партнера', subtitle: 'Шаг 2' },
+        { stepNumber: 3, title: 'Данные контрагента', subtitle: 'Шаг 3' },
+        { stepNumber: 4, title: 'Данные договора', subtitle: 'Шаг 4' }
+      ],
+      totalSteps: 4
+    },
+    '16933': { // Изменение
+      steps: [
+        { stepNumber: 2, title: 'Поиск данных', subtitle: 'Шаг 2' },
+        { stepNumber: 3, title: 'Изменение данных', subtitle: 'Шаг 3' }
+      ],
+      totalSteps: 3
+    },
+    '16935': { // Ошибка
+      steps: [
+        { stepNumber: 2, title: 'Описание ошибки', subtitle: 'Шаг 2' }
+      ],
+      totalSteps: 2
+    }
+  },
   // Для объекта "Контрагенты" (16937)
   '16937': {
     '16931': { // Добавление
@@ -2613,6 +3187,51 @@ const stepConfigs = {
       totalSteps: 2
     }
   },
+// Для объекта "Скидки" (16959)
+'16959': {
+  '16931': { // Добавление
+    steps: [
+      { stepNumber: 2, title: 'Данные скидки', subtitle: 'Шаг 2' }
+    ],
+    totalSteps: 2
+  },
+  '16933': { // Изменение
+    steps: [
+      { stepNumber: 2, title: 'Поиск скидки', subtitle: 'Шаг 2' },
+      { stepNumber: 3, title: 'Изменение данных скидки', subtitle: 'Шаг 3' }
+    ],
+    totalSteps: 3
+  },
+  '16935': { // Ошибка
+    steps: [
+      { stepNumber: 2, title: 'Описание ошибки', subtitle: 'Шаг 2' }
+    ],
+    totalSteps: 2
+  }
+},
+
+// Для объекта "Цены" (16961)
+'16961': {
+  '16931': { // Добавление
+    steps: [
+      { stepNumber: 2, title: 'Данные цены', subtitle: 'Шаг 2' }
+    ],
+    totalSteps: 2
+  },
+  '16933': { // Изменение
+    steps: [
+      { stepNumber: 2, title: 'Поиск цены', subtitle: 'Шаг 2' },
+      { stepNumber: 3, title: 'Изменение данных цены', subtitle: 'Шаг 3' }
+    ],
+    totalSteps: 3
+  },
+  '16935': { // Ошибка
+    steps: [
+      { stepNumber: 2, title: 'Описание ошибки', subtitle: 'Шаг 2' }
+    ],
+    totalSteps: 2
+  }
+},
   // Для других объектов НСИ (базовый конфиг)
   'default': {
     '16931': { // Добавление
@@ -2633,6 +3252,49 @@ const stepConfigs = {
       ],
       totalSteps: 2
     }
+  }
+}
+const getComplexInnRules = () => {
+  if (formData.complexCounterpartyType === '16955' || formData.complexCounterpartyType === '16957' || formData.complexCounterpartyType === '16959') {
+    return [
+      v => !!v || 'ИНН обязателен',
+      v => /^\d{12}$/.test(v) || 'ИНН должен содержать 12 цифр'
+    ]
+  } else {
+    return [
+      v => !!v || 'ИНН обязателен',
+      v => /^\d{10}$/.test(v) || 'ИНН должен содержать 10 цифр'
+    ]
+  }
+}
+
+const getComplexInnMaxLength = () => {
+  if (formData.complexCounterpartyType === '16955' || formData.complexCounterpartyType === '16957' || formData.complexCounterpartyType === '16959') {
+    return 12
+  } else {
+    return 10
+  }
+}
+
+const getComplexCounterpartyInnRules = () => {
+  if (formData.complexCounterpartyType2 === '16955' || formData.complexCounterpartyType2 === '16957' || formData.complexCounterpartyType2 === '16959') {
+    return [
+      v => !!v || 'ИНН обязателен',
+      v => /^\d{12}$/.test(v) || 'ИНН должен содержать 12 цифр'
+    ]
+  } else {
+    return [
+      v => !!v || 'ИНН обязателен',
+      v => /^\d{10}$/.test(v) || 'ИНН должен содержать 10 цифр'
+    ]
+  }
+}
+
+const getComplexCounterpartyInnMaxLength = () => {
+  if (formData.complexCounterpartyType2 === '16955' || formData.complexCounterpartyType2 === '16957' || formData.complexCounterpartyType2 === '16959') {
+    return 12
+  } else {
+    return 10
   }
 }
 
@@ -2673,7 +3335,26 @@ const dynamicSteps = computed(() => {
     nextButtonText: step.stepNumber === typeConfig.steps.length ? 'Отправить' : 'Далее'
   }))
 })
-
+const discountMechanicsOptions = ref([
+  { id: 'fixed_price', title: 'Фиксированная цена' },
+  { id: 'percentage', title: 'Процентная скидка' },
+  { id: 'quantity_based', title: 'Скидка от количества' },
+  { id: 'seasonal', title: 'Сезонная скидка' },
+  { id: 'promotional', title: 'Акционная цена' }
+])
+const priceTypeOptions = ref([
+  { id: 'wholesale', title: 'Оптовая' },
+  { id: 'retail', title: 'Розничная' },
+  { id: 'special', title: 'Специальная' },
+  { id: 'contract', title: 'Договорная' },
+  { id: 'promo', title: 'Промо-цена' },
+  { id: 'discount', title: 'Цена со скидкой' }
+])
+const priceRules = [
+  v => !!v || 'Цена обязательна',
+  v => !isNaN(parseFloat(v)) || 'Цена должна быть числом',
+  v => parseFloat(v) > 0 || 'Цена должна быть больше 0'
+]
 const totalSteps = computed(() => {
   if (!formData.object || !formData.type) return 1
   
@@ -2732,7 +3413,19 @@ const okpoRules = [
 ]
 
 const phoneRules = [
-  v => !v || /^[\d\s\+\-\(\)]+$/.test(v) || 'Некорректный номер телефона'
+  v => !!v || 'Телефон обязателен',
+  v => {
+    // Убираем все нецифровые символы для проверки
+    const cleanPhone = v ? v.replace(/\D/g, '') : ''
+    return cleanPhone.length >= 8 && cleanPhone.length <= 12 || 'Телефон должен содержать от 8 до 12 цифр'
+  },
+  v => {
+    if (!v) return true
+    // Проверяем формат: +7, 8, или начинается с цифры
+    const cleanPhone = v.replace(/\D/g, '')
+    const isValidStart = /^[78]/.test(cleanPhone) || cleanPhone.length === 10
+    return isValidStart || 'Телефон должен начинаться с +7, 8 или содержать 10 цифр'
+  }
 ]
 
 const emailRules = [
@@ -2848,20 +3541,47 @@ const hasAtLeastOneFieldForModification = () => {
   
   return false
 }
+const isAddType = computed(() => formData.type === '16931')
+const isEditType = computed(() => formData.type === '16933')
+const isErrorType = computed(() => formData.type === '16935')
+
 // Проверка возможности перехода на следующий шаг
-const canGoToNextStep = computed(() => {
+const existingAddTypeLogic = (() => {
   if (currentStep.value === 1) {
-    const basicFields = !!formData.type && !!formData.object //!!formData.view && 
+    const basicFields = !!formData.type && !!formData.object
     
-    if (formData.object === '16937') { // Контрагенты
+    if (formData.object === '17961') { // Комплекс: Контрагент + Договор
+      return basicFields
+    } else if (formData.object === '17959') { // Комплекс: Партнер + Контрагент + Договор
+      return basicFields
+    }
+    
+    // Оригинальные проверки...
+    if (formData.object === '16937') {
       return basicFields && !!formData.counterpartyType
-    } else if (formData.object === '16939') { // Партнеры
+    } else if (formData.object === '16939') {
       return basicFields && !!formData.partnerType
     }
     
     return basicFields
   }
   
+  // Проверка для шага 2 и далее
+  if (formData.object === '17961') { // Комплекс: Контрагент + Договор
+    if (currentStep.value === 2) {
+      return !!formData.complexCounterpartyType && !!formData.complexInn && !!formData.complexName && !!formData.complexLegalAddress
+    } else if (currentStep.value === 3) {
+      return !!formData.contractPurpose && !!formData.contractNumber && !!formData.contractDate && !!formData.contractName && !!formData.currency
+    }
+  } else if (formData.object === '17959') { // Комплекс: Партнер + Контрагент + Договор
+    if (currentStep.value === 2) {
+      return !!formData.complexPartnerType && !!formData.complexPartnerName && !!formData.complexPartnerCode
+    } else if (currentStep.value === 3) {
+      return !!formData.complexCounterpartyType2 && !!formData.complexCounterpartyInn && !!formData.complexCounterpartyName && !!formData.complexCounterpartyLegalAddress
+    } else if (currentStep.value === 4) {
+      return !!formData.complexContractPurpose && !!formData.complexContractNumber && !!formData.complexContractDate && !!formData.complexContractName && !!formData.complexCurrency
+    }
+  }
   // Проверка для шага 2 и далее
   if (formData.object === '16937') { // Контрагенты
     if (formData.type === '16931') { // Добавление
@@ -2942,16 +3662,51 @@ const canGoToNextStep = computed(() => {
         return hasAtLeastOneFieldForModification()
       }
     }
+  }else if (formData.object === '16959') { // Скидки
+  if (formData.type === '16931') { // Добавление
+    if (currentStep.value === 2) {
+      return !!formData.discountNomenclatureCode && 
+             !!formData.discountNomenclatureName && 
+             !!formData.discountMechanics && 
+             !!formData.priceBeforeDiscount && 
+             !!formData.priceWithDiscount
+    }
   }
-  
+  } else if (formData.object === '16961') { // Цены
+    if (formData.type === '16931') { // Добавление
+      if (currentStep.value === 2) {
+        return !!formData.priceNomenclatureCode && 
+              !!formData.priceNomenclatureName && 
+              !!formData.priceType && 
+              !!formData.priceBefore && 
+              !!formData.priceAfter
+      }
+    }
+  }
+    
   return true
 })
 
 // Навигация по шагам
 const goToNextStep = async () => {
-  if (currentStep.value === 1) {
-    const { valid } = await form.value.validate()
-    if (!valid) return
+  // Проверяем валидацию для текущего шага
+  const { valid } = await form.value.validate()
+  
+  if (!valid) {
+    submitStatus.value = {
+      type: 'warning',
+      message: 'Заполните все обязательные поля на текущем шаге'
+    }
+    return
+  }
+  
+  // Дополнительная проверка для типа "Добавление"
+  if (isAddType.value && !canGoToNextStep.value) {
+    submitStatus.value = {
+      type: 'warning',
+      message: 'Заполните все обязательные поля на текущем шаге'
+    }
+    return
   }
   
   const isLastStep = currentStep.value === totalSteps.value
@@ -2960,9 +3715,177 @@ const goToNextStep = async () => {
     await submitForm()
   } else if (currentStep.value < totalSteps.value) {
     currentStep.value++
+    submitStatus.value = null // Сбрасываем статус при переходе на следующий шаг
   }
 }
+// Проверка возможности перехода на следующий шаг
+const canGoToNextStep = computed(() => {
+  if (currentStep.value === 1) {
+    // Шаг 1 всегда требует заполнения основных полей
+    return !!formData.type && !!formData.object
+  }
+  
+  // Для шагов 2+ разная логика
+  if (isAddType.value) {
+    // Для добавления - проверяем ВСЕ обязательные поля на текущем шаге
+    return checkRequiredFieldsForCurrentStep()
+  } else {
+    // Для изменения и ошибки - всегда true (проверка на уровне отправки)
+    return true
+  }
+})
 
+// Функция проверки обязательных полей для текущего шага
+const checkRequiredFieldsForCurrentStep = () => {
+  // Определяем, какие поля обязательны для текущего шага
+  if (formData.object === '17961') { // Комплекс: Контрагент + Договор
+    if (currentStep.value === 2) {
+      return !!formData.complexCounterpartyType && 
+             !!formData.complexInn && 
+             !!formData.complexName && 
+             !!formData.complexLegalAddress &&
+             !!formData.complexPhone &&
+             !!formData.complexEmail
+    } else if (currentStep.value === 3) {
+      return !!formData.contractPurpose && 
+             !!formData.contractNumber && 
+             !!formData.contractDate && 
+             !!formData.contractName && 
+             !!formData.currency
+    }
+  } else if (formData.object === '17959') { // Комплекс: Партнер + Контрагент + Договор
+    if (currentStep.value === 2) {
+      return !!formData.complexPartnerType && 
+             !!formData.complexPartnerName && 
+             !!formData.complexPartnerCode &&
+             !!formData.complexPartnerPhone &&
+             !!formData.complexPartnerEmail
+    } else if (currentStep.value === 3) {
+      return !!formData.complexCounterpartyType2 && 
+             !!formData.complexCounterpartyInn && 
+             !!formData.complexCounterpartyName && 
+             !!formData.complexCounterpartyLegalAddress
+    } else if (currentStep.value === 4) {
+      return !!formData.complexContractPurpose && 
+             !!formData.complexContractNumber && 
+             !!formData.complexContractDate && 
+             !!formData.complexContractName && 
+             !!formData.complexCurrency
+    }
+  } else if (formData.object === '16937') { // Контрагенты
+    if (currentStep.value === 2) {
+      // Общие обязательные поля для всех видов контрагентов
+      let requiredFields = [
+        !!formData.inn,
+        !!formData.name,
+        !!formData.shortName,
+        !!formData.legalAddress,
+        !!formData.phone,
+        !!formData.email
+      ]
+      
+      // Дополнительные поля в зависимости от вида контрагента
+      if (formData.counterpartyType === '16953') { // ЮЛ
+        requiredFields.push(!!formData.kpp, !!formData.ogrn, !!formData.okpo)
+      } else if (formData.counterpartyType === '16954') { // ОПЮЛ
+        requiredFields.push(!!formData.kpp, !!formData.ogrn, !!formData.headInn, !!formData.headCounterparty)
+      } else if (formData.counterpartyType === '16957') { // ФЛ
+        requiredFields.push(!!formData.identityDocument)
+      } else if (formData.counterpartyType === '16955') { // ИП
+        requiredFields.push(!!formData.ogrnip)
+      } else if (formData.counterpartyType === '16959') { // ЮЛН
+        requiredFields.push(!!formData.registrationCountry, !!formData.registrationNumber, !!formData.taxNumber)
+      }
+      
+      return requiredFields.every(field => field)
+    } else if (currentStep.value === 3) {
+      return !!formData.partner && !!formData.partnerCode
+    }
+  } else if (formData.object === '16939') { // Партнеры
+    if (currentStep.value === 2) {
+      if (formData.partnerType === '16961') { // КП
+        return !!formData.name && 
+               !!formData.partnerCode && 
+               formData.businessRegion && formData.businessRegion.length > 0 &&
+               !!formData.phone &&
+               !!formData.email &&
+               !!formData.legalAddress
+      } else if (formData.partnerType === '16963') { // ЧЛ
+        return !!formData.name && 
+               !!formData.partnerCode && 
+               !!formData.partner &&
+               !!formData.phone &&
+               !!formData.email
+      }
+    } else if (currentStep.value === 3) {
+      return true // Файлы не обязательны
+    }
+  } else if (formData.object === '16943') { // Договоры
+    if (currentStep.value === 2) {
+      return !!formData.contractPurpose && 
+             !!formData.contractNumber && 
+             !!formData.contractDate && 
+             !!formData.contractName && 
+             !!formData.organization &&
+             !!formData.partnerCode && 
+             !!formData.partner && 
+             !!formData.paymentDetails && 
+             !!formData.currency
+    }
+  } else if (formData.object === '16941') { // Банковские счета
+    if (currentStep.value === 2) {
+      return !!formData.bankAccountStatus && 
+             !!formData.counterpartyInn && 
+             !!formData.counterparty && 
+             !!formData.bankType
+    } else if (currentStep.value === 3) {
+      if (formData.bankType === 'national') {
+        return !!formData.bik && 
+               !!formData.bankName && 
+               !!formData.currency && 
+               !!formData.accountNumber && 
+               !!formData.correspondentAccount
+      } else if (formData.bankType === 'international') {
+        return !!formData.swift && 
+               !!formData.bankName && 
+               !!formData.bankRegistrationCity && 
+               !!formData.currency && 
+               !!formData.accountNumber && 
+               !!formData.correspondentAccount
+      }
+    }
+  } else if (formData.object === '16945') { // Склады
+    if (currentStep.value === 2) {
+      return !!formData.warehouseType && 
+             !!formData.warehouseName && 
+             !!formData.warehouseCode
+    }
+  } else if (formData.object === '16947') { // Упаковки
+    if (currentStep.value === 2) {
+      return !!formData.nomenclature && 
+             !!formData.measurementUnit && 
+             !!formData.packageComposition
+    }
+  } else if (formData.object === '16959') { // Скидки
+    if (currentStep.value === 2) {
+      return !!formData.discountNomenclatureCode && 
+             !!formData.discountNomenclatureName && 
+             !!formData.discountMechanics && 
+             !!formData.priceBeforeDiscount && 
+             !!formData.priceWithDiscount
+    }
+  } else if (formData.object === '16961') { // Цены
+    if (currentStep.value === 2) {
+      return !!formData.priceNomenclatureCode && 
+             !!formData.priceNomenclatureName && 
+             !!formData.priceType && 
+             !!formData.priceBefore && 
+             !!formData.priceAfter
+    }
+  }
+  
+  return true
+}
 const goToPreviousStep = () => {
   if (currentStep.value > 1) {
     currentStep.value--
@@ -2982,7 +3905,11 @@ const handleObjectChange = () => {
   if (currentStep.value > 1) {
     currentStep.value = 1
   }
-  
+  if (formData.object === '17961') {
+    resetComplexFields17961()
+  } else if (formData.object === '17959') {
+    resetComplexFields17959()
+  }
   // Сбрасываем поля, специфичные для объекта
   if (formData.object === '16937') { // Контрагенты
     formData.partnerType = null
@@ -3011,6 +3938,37 @@ const handleObjectChange = () => {
     formData.taxNumber = ''
     formData.contactPerson = ''
   }
+}
+const resetComplexFields17961 = () => {
+  formData.complexCounterpartyType = null
+  formData.complexInn = ''
+  formData.complexName = ''
+  formData.complexLegalAddress = ''
+  formData.complexPhone = ''
+  formData.complexEmail = ''
+  formData.contractPurpose = ''
+  formData.contractNumber = ''
+  formData.contractDate = ''
+  formData.contractName = ''
+  formData.currency = ''
+}
+
+const resetComplexFields17959 = () => {
+  formData.complexPartnerType = null
+  formData.complexPartnerName = ''
+  formData.complexPartnerCode = ''
+  formData.complexPartnerPhone = ''
+  formData.complexPartnerEmail = ''
+  formData.complexCounterpartyType2 = null
+  formData.complexCounterpartyInn = ''
+  formData.complexCounterpartyName = ''
+  formData.complexCounterpartyLegalAddress = ''
+  formData.complexContractPurpose = ''
+  formData.complexContractNumber = ''
+  formData.complexContractDate = ''
+  formData.complexContractName = ''
+  formData.complexCurrency = ''
+  formData.complexHasFile = null
 }
 
 const handleCopyAddress = (value) => {
@@ -3064,16 +4022,65 @@ const getPartnerTypeTitle = (id) => {
   return item ? item.title : ''
 }
 
-// Функция для получения всех полей заявки для комментария (обновленная)
 const getAllRequestFields = () => {
   const fields = []
   
-  // Основные поля
   fields.push(`Тип заявки: ${getRequestTypeTitle(formData.type)}`)
-  //fields.push(`Вид заявки: ${getRequestViewTitle(formData.view)}`)
   fields.push(`Объект MDM: ${getNsiObjectTitle(formData.object)}`)
   
-  if (formData.object === '16937') { // Контрагенты
+  if (formData.object === '17961') { // Комплекс: Контрагент + Договор
+    fields.push('\n=== ДАННЫЕ КОНТРАГЕНТА ===')
+    fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.complexCounterpartyType)}`)
+    fields.push(`ИНН: ${formData.complexInn}`)
+    fields.push(`Наименование: ${formData.complexName}`)
+    fields.push(`Юридический адрес: ${formData.complexLegalAddress}`)
+    if (formData.complexPhone) fields.push(`Телефон: ${formData.complexPhone}`)
+    if (formData.complexEmail) fields.push(`Электронная почта: ${formData.complexEmail}`)
+    
+    fields.push('\n=== ДАННЫЕ ДОГОВОРА ===')
+    if (formData.contractPurpose) {
+      const item = contractPurposeOptions.value.find(item => item.id === formData.contractPurpose)
+      fields.push(`Цель договора: ${item ? item.title : formData.contractPurpose}`)
+    }
+    if (formData.contractNumber) fields.push(`Номер договора: ${formData.contractNumber}`)
+    if (formData.contractDate) fields.push(`Дата договора: ${formData.contractDate}`)
+    if (formData.contractName) fields.push(`Наименование договора: ${formData.contractName}`)
+    if (formData.currency) {
+      const item = currencyOptions.value.find(item => item.CURRENCY === formData.currency)
+      fields.push(`Валюта: ${item ? item.FULL_NAME : formData.currency}`)
+    }
+    
+  } else if (formData.object === '17959') { // Комплекс: Партнер + Контрагент + Договор
+    fields.push('\n=== ДАННЫЕ ПАРТНЕРА ===')
+    fields.push(`Вид партнера: ${getPartnerTypeTitle(formData.complexPartnerType)}`)
+    fields.push(`Наименование: ${formData.complexPartnerName}`)
+    fields.push(`Код партнера: ${formData.complexPartnerCode}`)
+    if (formData.complexPartnerPhone) fields.push(`Телефон: ${formData.complexPartnerPhone}`)
+    if (formData.complexPartnerEmail) fields.push(`Электронная почта: ${formData.complexPartnerEmail}`)
+    
+    fields.push('\n=== ДАННЫЕ КОНТРАГЕНТА ===')
+    fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.complexCounterpartyType2)}`)
+    fields.push(`ИНН: ${formData.complexCounterpartyInn}`)
+    fields.push(`Наименование: ${formData.complexCounterpartyName}`)
+    fields.push(`Юридический адрес: ${formData.complexCounterpartyLegalAddress}`)
+    
+    fields.push('\n=== ДАННЫЕ ДОГОВОРА ===')
+    if (formData.complexContractPurpose) {
+      const item = contractPurposeOptions.value.find(item => item.id === formData.complexContractPurpose)
+      fields.push(`Цель договора: ${item ? item.title : formData.complexContractPurpose}`)
+    }
+    if (formData.complexContractNumber) fields.push(`Номер договора: ${formData.complexContractNumber}`)
+    if (formData.complexContractDate) fields.push(`Дата договора: ${formData.complexContractDate}`)
+    if (formData.complexContractName) fields.push(`Наименование договора: ${formData.complexContractName}`)
+    if (formData.complexCurrency) {
+      const item = currencyOptions.value.find(item => item.CURRENCY === formData.complexCurrency)
+      fields.push(`Валюта: ${item ? item.FULL_NAME : formData.complexCurrency}`)
+    }
+    fields.push(`Файлы приложены: ${formData.complexHasFile && formData.complexHasFile.length > 0 ? 'Да' : 'Нет'}`)
+  }
+  
+  // Оригинальные обработчики для других объектов...
+  else if (formData.object === '16937') {
     fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.counterpartyType)}`)
   } else if (formData.object === '16939') { // Партнеры
     fields.push(`Вид партнера: ${getPartnerTypeTitle(formData.partnerType)}`)
@@ -3301,6 +4308,72 @@ if (formData.object === '16943') {
       if (formData.accountNumber) fields.push(`Расчетный счет: ${formData.accountNumber}`)
       if (formData.correspondentAccount) fields.push(`Корреспондентский счет: ${formData.correspondentAccount}`)
     }
+  } else if (formData.object === '16947') { // Упаковки
+
+    if (formData.nomenclature) fields.push(`Номенклатура: ${formData.nomenclature}`)
+    
+    if (formData.nomenclatureCodes && formData.nomenclatureCodes.length > 0) {
+      const codes = formData.nomenclatureCodes.map(code => {
+        const item = nomenclatureCodeOptions.value.find(item => item.id === code)
+        return item ? item.title : code
+      }).join(', ')
+      fields.push(`Номенклатура код: ${codes}`)
+    }
+    
+    if (formData.additionalInfo) fields.push(`Дополнительно: ${formData.additionalInfo}`)
+    if (formData.measurementUnit) fields.push(`Единица измерения: ${formData.measurementUnit}`)
+    if (formData.packageComposition) fields.push(`1 шт упаковки состоит из: ${formData.packageComposition}`)
+    if (formData.weight) fields.push(`Вес: ${formData.weight}`)
+    if (formData.height) fields.push(`Высота, м: ${formData.height}`)
+    if (formData.width) fields.push(`Ширина, м: ${formData.width}`)
+    if (formData.depth) fields.push(`Глубина, м: ${formData.depth}`)
+    if (formData.volume) fields.push(`Объем: ${formData.volume}`)
+    if (formData.typeSize) fields.push(`Типоразмер: ${formData.typeSize}`)
+    if (formData.additionalInfoSecondary) fields.push(`Дополнительно: ${formData.additionalInfoSecondary}`)
+    
+    if (formData.type === '16933') { // Изменение
+      fields.push(`\n--- ДАННЫЕ ДЛЯ ИЗМЕНЕНИЯ ---`)
+      if (formData.partnerCode) fields.push(`Партнер (код): ${formData.partnerCode}`)
+      if (formData.partner) fields.push(`Партнер: ${formData.partner}`)
+      if (formData.warehouseCode) fields.push(`Склад (код): ${formData.warehouseCode}`)
+    } else if (formData.type === '16935') { // Ошибка
+      fields.push(`\n--- ОПИСАНИЕ ОШИБКИ ---`)
+      if (formData.errorDescription) fields.push(`Описание ошибки: ${formData.errorDescription}`)
+      fields.push(`Файл/скриншот приложен: ${formData.hasScreenshot ? 'Да' : 'Нет'}`)
+    }
+    
+    // Общие поля
+    if (formData.hasFile && formData.hasFile.length > 0) {
+      const fileNames = formData.hasFile.map(file => file.name).join(', ')
+      fields.push(`\nПрикрепленные файлы: ${fileNames}`)
+    }
+  } else if (formData.object === '16959') { // Скидки
+
+    if (formData.discountNomenclatureCode) fields.push(`Номенклатура (код): ${formData.discountNomenclatureCode}`)
+    if (formData.discountNomenclatureName) fields.push(`Номенклатура (наименование): ${formData.discountNomenclatureName}`)
+    
+    if (formData.discountMechanics) {
+      const item = discountMechanicsOptions.value.find(item => item.id === formData.discountMechanics)
+      fields.push(`Механика (вид цены, %, кол-во): ${item ? item.title : formData.discountMechanics}`)
+    }
+    
+    if (formData.priceBeforeDiscount) fields.push(`Цена до акции: ${formData.priceBeforeDiscount}`)
+    if (formData.priceWithDiscount) fields.push(`Цена по акции: ${formData.priceWithDiscount}`)
+    if (formData.discountComment) fields.push(`Дополнительный комментарий: ${formData.discountComment}`)
+    
+  } else if (formData.object === '16961') { // Цены
+
+    if (formData.priceNomenclatureCode) fields.push(`Номенклатура (код): ${formData.priceNomenclatureCode}`)
+    if (formData.priceNomenclatureName) fields.push(`Номенклатура (наименование): ${formData.priceNomenclatureName}`)
+    
+    if (formData.priceType) {
+      const item = priceTypeOptions.value.find(item => item.id === formData.priceType)
+      fields.push(`Вид цены: ${item ? item.title : formData.priceType}`)
+    }
+    
+    if (formData.priceBefore) fields.push(`Цена ДО: ${formData.priceBefore}`)
+    if (formData.priceAfter) fields.push(`Цена ПОСЛЕ: ${formData.priceAfter}`)
+    if (formData.priceComment) fields.push(`Дополнительный комментарий: ${formData.priceComment}`)
   }
   return fields.join('\n')
 }
@@ -3461,22 +4534,63 @@ const encodeFilesToBase64 = (files) => {
   )
 }
 // Функция создания заявки в Bitrix24 (нужно будет адаптировать под новые поля)
+
 const createBitrixRequest = async () => {
   return new Promise(async (resolve, reject) => {
-    // Подготавливаем данные для отправки
     const fields = {
       entityTypeId: 1046,
       fields: {
-        // Основные поля (из шага 1)
         'ufCrm63_1765788575681': formData.type,
-        'ufCrm63_1765184921808': formData.view,
         'ufCrm63_1765789339357': formData.object,
         'ufCrm63_1765184971082': getAllRequestFields() || '',
       }
     }
-
-    // Добавляем дополнительные поля в зависимости от объекта НСИ и типа заявки
-    if (formData.object === '16937') { // Контрагенты
+    
+    // Обработка комплексного объекта 17961
+    if (formData.object === '17961') {
+      fields.fields['ufCrm63_1766580111'] = formData.complexCounterpartyType
+      fields.fields['ufCrm63_1765788575689'] = formData.complexInn
+      fields.fields['ufCrm63_1765788575691'] = formData.complexName
+      fields.fields['ufCrm63_1765788575695'] = formData.complexLegalAddress
+      fields.fields['ufCrm63_1765788575699'] = formData.complexPhone
+      fields.fields['ufCrm63_1765788575701'] = formData.complexEmail
+      
+      // Поля договора
+      fields.fields['ufCrm63_1770000000001'] = formData.contractPurpose
+      fields.fields['ufCrm63_1770000000002'] = formData.contractNumber
+      fields.fields['ufCrm63_1770000000003'] = formData.contractDate
+      fields.fields['ufCrm63_1770000000004'] = formData.contractName
+      fields.fields['ufCrm63_1770000000005'] = formData.currency
+      
+    } else if (formData.object === '17959') {
+      // Поля партнера
+      fields.fields['ufCrm63_1766580113'] = formData.complexPartnerType
+      fields.fields['ufCrm63_1770000000011'] = formData.complexPartnerName
+      fields.fields['ufCrm63_1770000000012'] = formData.complexPartnerCode
+      fields.fields['ufCrm63_1770000000013'] = formData.complexPartnerPhone
+      fields.fields['ufCrm63_1770000000014'] = formData.complexPartnerEmail
+      
+      // Поля контрагента
+      fields.fields['ufCrm63_1770000000021'] = formData.complexCounterpartyType2
+      fields.fields['ufCrm63_1770000000022'] = formData.complexCounterpartyInn
+      fields.fields['ufCrm63_1770000000023'] = formData.complexCounterpartyName
+      fields.fields['ufCrm63_1770000000024'] = formData.complexCounterpartyLegalAddress
+      
+      // Поля договора
+      fields.fields['ufCrm63_1770000000031'] = formData.complexContractPurpose
+      fields.fields['ufCrm63_1770000000032'] = formData.complexContractNumber
+      fields.fields['ufCrm63_1770000000033'] = formData.complexContractDate
+      fields.fields['ufCrm63_1770000000034'] = formData.complexContractName
+      fields.fields['ufCrm63_1770000000035'] = formData.complexCurrency
+      
+      // Файлы
+      let files = []
+      if (formData.complexHasFile && formData.complexHasFile.length > 0) {
+        files = await encodeFilesToBase64(formData.complexHasFile)
+        files = files.map((file) => [file.name, file.base64])
+      }
+      fields.fields['ufCrm63_1765184954446'] = files
+    } else if (formData.object === '16937') { // Контрагенты
       fields.fields['ufCrm63_1766580111'] = formData.counterpartyType // Вид контрагента
       
       if (formData.type === '16931') { // Добавление
@@ -3545,14 +4659,29 @@ const createBitrixRequest = async () => {
           }
         }
       }
+    } else if (formData.object === '16959') { // Скидки
+      fields.fields['ufCrm63_1765788580001'] = formData.discountNomenclatureCode
+      fields.fields['ufCrm63_1765788580002'] = formData.discountNomenclatureName
+      fields.fields['ufCrm63_1765788580003'] = formData.discountMechanics
+      fields.fields['ufCrm63_1765788580004'] = formData.priceBeforeDiscount
+      fields.fields['ufCrm63_1765788580005'] = formData.priceWithDiscount
+      fields.fields['ufCrm63_1765788580006'] = formData.discountComment
+      
+    } else if (formData.object === '16961') { // Цены
+      fields.fields['ufCrm63_1765788581001'] = formData.priceNomenclatureCode
+      fields.fields['ufCrm63_1765788581002'] = formData.priceNomenclatureName
+      fields.fields['ufCrm63_1765788581003'] = formData.priceType
+      fields.fields['ufCrm63_1765788581004'] = formData.priceBefore
+      fields.fields['ufCrm63_1765788581005'] = formData.priceAfter
+      fields.fields['ufCrm63_1765788581006'] = formData.priceComment
     }
-
+/*
     console.log(formData.hasFile);
     let files = await encodeFilesToBase64(formData.hasFile);
 
     files = files.map((file) => [file.name, file.base64]);
     console.log(files);
-    fields.fields['ufCrm63_1765184954446'] = files;
+    fields.fields['ufCrm63_1765184954446'] = files;*/
     BX24.callMethod(
       'crm.item.add',
       fields,
@@ -3568,9 +4697,32 @@ const createBitrixRequest = async () => {
     )
   })
 }
-
+const hasAtLeastOneFieldFilled = (fieldsArray) => {
+  return fieldsArray.some(field => {
+    if (Array.isArray(field)) {
+      return field.length > 0
+    }
+    return field !== null && field !== '' && field !== false
+  })
+}
 // Основная функция отправки формы
 const submitForm = async () => {
+// Для изменения и ошибок проверяем, что хотя бы одно поле заполнено
+  if (isEditType.value || isErrorType.value) {
+    const allFields = Object.values(formData).filter((value, key) => {
+      // Исключаем системные поля
+      const excludedKeys = ['date', 'type', 'object', 'comment', 'view']
+      return !excludedKeys.includes(key)
+    })
+    
+    if (!hasAtLeastOneFieldFilled(allFields)) {
+      submitStatus.value = {
+        type: 'error',
+        message: 'Заполните хотя бы одно поле для изменения/доработки'
+      }
+      return
+    }
+  }
   const { valid } = await form.value.validate()
   if (!valid) {
     submitStatus.value = {
@@ -3610,17 +4762,16 @@ const submitForm = async () => {
 const resetForm = () => {
   const currentDate = formData.date
   
+  // Сброс всех полей
   Object.keys(formData).forEach(key => {
     if (key === 'date') {
       formData[key] = new Date().toLocaleDateString('ru-RU')
-    } else if (key === 'additionalPhones' || key === 'additionalEmails') {
-      formData[key] = []
-    } else if (key === 'businessRegion' || key === 'relationshipType') {
+    } else if (Array.isArray(formData[key])) {
       formData[key] = []
     } else if (typeof formData[key] === 'boolean') {
       formData[key] = false
     } else {
-      formData[key] = ''
+      formData[key] = null
     }
   })
   
