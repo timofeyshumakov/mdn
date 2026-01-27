@@ -1,5 +1,11 @@
 <template>
   <v-app>
+    <LoadingProgress 
+      v-if="isLoading"
+      :message="loadingMessage"
+      :duration="2500"
+      @complete="onLoadingComplete"
+    />
     <v-main>
       <v-container fluid class="pa-0">
         <v-card class="mx-auto" flat>
@@ -61,6 +67,8 @@
                 <v-autocomplete
                   v-model="formData.counterpartyType"
                   :items="counterpartyTypeOptions"
+                  item-title="title"
+                  item-value="id"
                   label="Вид контрагента"
                   placeholder="Укажите: правовой статус контрагента"
                   :rules="[v => !!v || 'Вид контрагента обязателен']"
@@ -124,23 +132,1387 @@
                   {{ stepData.title }}
                 </v-alert>
                 
-                <!-- Поля для объекта "Банковские счета" -->
-                <div v-if="formData.object === '16941'">
-                    <!-- Шаг 2: Основные данные -->
+                <!-- Для типа заявки "Ошибка/доработка" (16935) -->
+                <div v-if="formData.type === '16935'">
+                  <!-- Шаг 2: Описание ошибки и файлы -->
+                  <div v-if="stepData.stepNumber === 2">
+                    <v-textarea
+                      v-model="formData.errorDescription"
+                      label="Описание ошибки"
+                      placeholder="Опишите ошибку или требуемые доработки..."
+                      :rules="[v => !!v || 'Описание ошибки обязательно']"
+                      rows="4"
+                      :maxlength="250"
+                      variant="outlined"
+                      counter
+                      class="mb-4"
+                    ></v-textarea>
+                    
+                    <!-- Файлы -->
+                    <v-file-input
+                      v-model="formData.hasFile"
+                      label="Файлы"
+                      placeholder="Загрузите файлы или скриншоты для описания ошибки..."
+                      multiple
+                      chips
+                      counter
+                      show-size
+                      prepend-icon="mdi-paperclip"
+                      :rules="fileRules"
+                      variant="outlined"
+                      class="mb-6"
+                    ></v-file-input>
+                  </div>
+                </div>
+
+                <!-- Для типов заявки "Добавление" (16931) и "Изменение" (16933) -->
+                <div v-else>
+                  <!-- Поля для объекта "Банковские счета" -->
+                  <div v-if="formData.object === '16941'">
+                      <!-- Шаг 2: Основные данные -->
+                      <div v-if="stepData.stepNumber === 2">
+                        <!-- Статус -->
+                        <v-autocomplete
+                          v-model="formData.bankAccountStatus"
+                          :items="bankAccountStatusOptions"
+                          label="Статус"
+                          placeholder="Укажите: значение из выпадающего списка"
+                          :rules="[v => !!v || 'Статус обязателен']"
+                          item-title="title"
+                          item-value="id"
+                          variant="outlined"
+                          required
+                          class="mb-4"
+                        ></v-autocomplete>
+                        
+                        <!-- Контрагент -->
+                        <v-text-field
+                          v-model="formData.counterparty"
+                          label="Контрагент"
+                          placeholder="Укажите: наименование контрагента (пример: Ромашка ООО)"
+                          :rules="[v => !!v || 'Контрагент обязателен']"
+                          :maxlength="150"
+                          variant="outlined"
+                          counter
+                          class="mb-4"
+                        ></v-text-field>
+                        
+                        <!-- Контрагент ИНН -->
+                        <v-text-field
+                          v-model="formData.counterpartyInn"
+                          label="Контрагент ИНН"
+                          placeholder="Введите ИНН контрагента..."
+                          :rules="getInnRules()"
+                          maxlength="12"
+                          variant="outlined"
+                          counter
+                          class="mb-4"
+                        ></v-text-field>
+                        
+                        <!-- Вид банка -->
+                        <v-autocomplete
+                          v-model="formData.bankType"
+                          :items="bankTypeOptions"
+                          label="Вид банка"
+                          placeholder="Укажите: значение из выпадающего списка"
+                          :rules="[v => !!v || 'Вид банка обязателен']"
+                          item-title="title"
+                          item-value="id"
+                          variant="outlined"
+                          required
+                          class="mb-4"
+                          @update:model-value="handleBankTypeChange"
+                        ></v-autocomplete>
+                      </div>
+                      
+                      <!-- Шаг 3: Данные банка -->
+                      <div v-if="stepData.stepNumber === 3">
+                        <!-- Для национального банка -->
+                        <div v-if="formData.bankType === 'national' || formData.bankType === '16971'">
+                          <!-- БИК -->
+                          <v-text-field
+                            v-model="formData.bik"
+                            label="БИК"
+                            placeholder="Укажите: цифровой код идентификации банка (9 символов)"
+                            :rules="bikRules"
+                            :maxlength="9"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Наименование банка -->
+                          <v-text-field
+                            v-model="formData.bankName"
+                            label="Наименование банка"
+                            placeholder="Укажите: наименование банка (пример: СИБИРСКИЙ БАНК ПАО СБЕРБАНК)"
+                            :rules="[v => !!v || 'Наименование банка обязательно']"
+                            :maxlength="150"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Валюта -->
+                          <v-autocomplete
+                            v-model="formData.currency"
+                            :items="currencyOptions"
+                            label="Валюта"
+                            placeholder="Укажите: валюту расчетов"
+                            :rules="[v => !!v || 'Валюта обязательна']"
+                            item-title="FULL_NAME"
+                            item-value="CURRENCY"
+                            variant="outlined"
+                            required
+                            class="mb-4"
+                          ></v-autocomplete>
+                          
+                          <!-- Расчетный счет -->
+                          <v-text-field
+                            v-model="formData.accountNumber"
+                            label="Расчетный счет"
+                            placeholder="Введите расчетный счет..."
+                            :rules="accountNumberRules"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Корреспондентский счет -->
+                          <v-text-field
+                            v-model="formData.correspondentAccount"
+                            label="Корреспондентский счет"
+                            placeholder="Введите корреспондентский счет..."
+                            :rules="correspondentAccountRules"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Адрес -->
+                          <v-text-field
+                            v-model="formData.bankAddress"
+                            label="Адрес банка"
+                            placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
+                            :maxlength="250"
+                            variant="outlined"
+                            counter
+                            class="mb-6"
+                          ></v-text-field>
+                        </div>
+                        
+                        <!-- Для международного банка -->
+                        <div v-else-if="formData.bankType === 'international' || formData.bankType === '16973'">
+                          <!-- SWIFT -->
+                          <v-text-field
+                            v-model="formData.swift"
+                            label="SWIFT"
+                            placeholder="Укажите: код идентификации банка для международных операций (8-11 символов)"
+                            :rules="swiftRules"
+                            :maxlength="11"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Наименование банка -->
+                          <v-text-field
+                            v-model="formData.bankName"
+                            label="Наименование банка"
+                            placeholder="Укажите: наименование банка (пример: СИБИРСКИЙ БАНК ПАО СБЕРБАНК)"
+                            :rules="[v => !!v || 'Наименование банка обязательно']"
+                            :maxlength="150"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Страна регистрации и город -->
+                          <v-text-field
+                            v-model="formData.bankRegistrationCity"
+                            label="Страна регистрации и город"
+                            placeholder="Укажите: страну регистрации и город"
+                            :rules="[v => !!v || 'Страна и город обязательны']"
+                            :maxlength="100"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Адрес -->
+                          <v-text-field
+                            v-model="formData.bankAddress"
+                            label="Адрес банка"
+                            placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
+                            :maxlength="250"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Валюта -->
+                          <v-autocomplete
+                            v-model="formData.currency"
+                            :items="currencyOptions"
+                            label="Валюта"
+                            placeholder="Укажите: валюту расчетов"
+                            :rules="[v => !!v || 'Валюта обязательна']"
+                            item-title="FULL_NAME"
+                            item-value="CURRENCY"
+                            variant="outlined"
+                            required
+                            class="mb-4"
+                          ></v-autocomplete>
+                          
+                          <!-- Расчетный счет -->
+                          <v-text-field
+                            v-model="formData.accountNumber"
+                            label="Расчетный счет"
+                            placeholder="Введите расчетный счет..."
+                            :rules="accountNumberRules"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Корреспондентский счет -->
+                          <v-text-field
+                            v-model="formData.correspondentAccount"
+                            label="Корреспондентский счет"
+                            placeholder="Введите корреспондентский счет..."
+                            :rules="correspondentAccountRules"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-6"
+                          ></v-text-field>
+                        </div>
+                      </div>
+                      
+                      <!-- Шаг 4: Файлы -->
+                      <div v-if="stepData.stepNumber === 4">
+                        <!-- Файлы -->
+                        <v-file-input
+                          v-model="formData.hasFile"
+                          label="Файлы"
+                          placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
+                          multiple
+                          chips
+                          counter
+                          show-size
+                          prepend-icon="mdi-paperclip"
+                          :rules="fileRules"
+                          variant="outlined"
+                          class="mb-6"
+                        ></v-file-input>
+                      </div>
+                    </div>
+
+                  <!-- Поля для объекта "Контрагенты" -->
+                  <div v-else-if="formData.object === '16937'">
+                    <!-- Поля для добавления и изменения контрагента -->
+                    <!-- Шаг 2: Основные данные контрагента -->
                     <div v-if="stepData.stepNumber === 2">
-                      <!-- Статус -->
+                          <!-- Партнер -->
+                          <v-text-field
+                            v-model="formData.partner"
+                            label="Партнер"
+                            placeholder="Укажите наименование партнера из 1С ERP"
+                            :rules="[v => !!v || 'Партнер обязателен']"
+                            :maxlength="150"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Вид контрагента -->
+                          <v-autocomplete
+                            v-model="formData.counterpartyType"
+                            :items="counterpartyTypeOptions"
+                            label="Вид контрагента"
+                            placeholder="Выберите вид контрагента"
+                            :rules="[v => !!v || 'Вид контрагента обязателен']"
+                            item-title="title"
+                            item-value="id"
+                            variant="outlined"
+                            required
+                            class="mb-4"
+                            @update:model-value="resetCounterpartySpecificFields"
+                          ></v-autocomplete>
+                          
+                          <!-- ИНН (зависит от вида контрагента) -->
+                          <v-text-field
+                            v-model="formData.inn"
+                            label="ИНН"
+                            placeholder="Введите ИНН"
+                            :rules="getInnRules()"
+                            maxlength="12"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Наименование -->
+                          <v-text-field
+                            v-model="formData.name"
+                            label="Наименование"
+                            placeholder="Укажите полное наименование контрагента"
+                            :rules="[v => !!v || 'Наименование обязательно']"
+                            :maxlength="100"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Сокр. наименование -->
+                          <v-text-field
+                            v-model="formData.shortName"
+                            label="Сокр. наименование"
+                            placeholder="Укажите сокращенное наименование"
+                            :rules="[v => !!v || 'Сокращенное наименование обязательно']"
+                            :maxlength="250"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+
+                          <!-- Конкретные поля для ЮЛ и ОПЮЛ -->
+                          <div v-if="['17941', '17943'].includes(formData.counterpartyType)">
+                            <!-- КПП -->
+                            <v-text-field
+                              v-model="formData.kpp"
+                              label="КПП"
+                              placeholder="Введите КПП"
+                              :rules="kppRules"
+                              :maxlength="9"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                            
+                            <!-- ОГРН -->
+                            <v-text-field
+                              v-model="formData.ogrn"
+                              label="ОГРН"
+                              placeholder="Введите ОГРН"
+                              :rules="ogrnRules"
+                              :maxlength="15"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                            
+                            <!-- ОКПО -->
+                            <v-text-field
+                              v-model="formData.okpo"
+                              label="ОКПО"
+                              placeholder="Введите ОКПО"
+                              :rules="okpoRules"
+                              :maxlength="10"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                          </div>
+
+                          <!-- Поля для ОПЮЛ -->
+                          <div v-if="formData.counterpartyType === '17943'">
+                            <!-- ИНН Головного контрагента -->
+                            <v-text-field
+                              v-model="formData.headInn"
+                              label="ИНН Головного контрагента"
+                              placeholder="Введите ИНН головного контрагента"
+                              :rules="[v => !!v || 'ИНН головного контрагента обязателен']"
+                              maxlength="12"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                            
+                            <!-- Головной контрагент -->
+                            <v-text-field
+                              v-model="formData.headCounterparty"
+                              label="Головной контрагент"
+                              placeholder="Укажите головного контрагента"
+                              :rules="[v => !!v || 'Головной контрагент обязателен']"
+                              :maxlength="50"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                          </div>
+
+                          <!-- Поле для ФЛ -->
+                          <div v-if="formData.counterpartyType === '17945'">
+                            <v-text-field
+                              v-model="formData.identityDocument"
+                              label="Документ удост. личность"
+                              placeholder="Укажите реквизиты документа, удостоверяющего личность"
+                              :rules="[v => !!v || 'Документ обязателен']"
+                              :maxlength="150"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                          </div>
+
+                          <!-- Поле для ИП -->
+                          <div v-if="formData.counterpartyType === '17947'">
+                            <v-text-field
+                              v-model="formData.ogrnip"
+                              label="ОГРНИП"
+                              placeholder="Введите ОГРНИП"
+                              :rules="ogrnipRules"
+                              :maxlength="15"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                          </div>
+
+                          <!-- Поля для ЮЛН -->
+                          <div v-if="formData.counterpartyType === '17949'">
+                            <!-- Страна регистрации -->
+                            <v-autocomplete
+                              v-model="formData.registrationCountry"
+                              :items="registrationCountryOptions"
+                              item-title="NAME"
+                              item-value="NAME"
+                              label="Страна регистрации"
+                              placeholder="Выберите страну регистрации"
+                              :rules="[v => !!v || 'Страна регистрации обязательна']"
+                              variant="outlined"
+                              class="mb-4"
+                            ></v-autocomplete>
+                            
+                            <!-- Рег. номер -->
+                            <v-text-field
+                              v-model="formData.registrationNumber"
+                              label="Рег. номер"
+                              placeholder="Укажите регистрационный номер в стране регистрации"
+                              :rules="[v => !!v || 'Регистрационный номер обязателен']"
+                              :maxlength="50"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                            
+                            <!-- Налоговый номер -->
+                            <v-text-field
+                              v-model="formData.taxNumber"
+                              label="Налоговый номер"
+                              placeholder="Укажите налоговый номер страны регистрации"
+                              :rules="[v => !!v || 'Налоговый номер обязателен']"
+                              :maxlength="50"
+                              variant="outlined"
+                              counter
+                              class="mb-4"
+                            ></v-text-field>
+                          </div>
+                          
+                          <!-- Юридический адрес -->
+                          <v-text-field
+                            v-model="formData.legalAddress"
+                            label="Юридический адрес"
+                            placeholder="Укажите юридический адрес"
+                            :rules="[v => !!v || 'Юридический адрес обязателен']"
+                            :maxlength="250"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Фактический адрес -->
+                          <v-text-field
+                            v-model="formData.actualAddress"
+                            label="Фактический адрес"
+                            placeholder="Укажите фактический адрес (если отличается от юридического)"
+                            :maxlength="250"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Телефон -->
+                          <v-text-field
+                            v-model="formData.phone"
+                            label="Телефон"
+                            v-mask="'+7 (###) ###-##-##'"
+                            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+                            :rules="phoneRules"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Электронная почта -->
+                          <v-text-field
+                            v-model="formData.email"
+                            label="Электронная почта"
+                            placeholder="Укажите email в формате name@domain.com"
+                            :rules="emailRules"
+                            :maxlength="50"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <!-- Контактное лицо -->
+                          <v-text-field
+                            v-model="formData.contactPerson"
+                            label="Контактное лицо"
+                            placeholder="Укажите ФИО контактного лица"
+                            :rules="[v => !!v || 'Контактное лицо обязательно']"
+                            :maxlength="150"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                        </div>
+                        
+                        <!-- Шаг 3: Файлы -->
+                        <div v-if="stepData.stepNumber === 3">
+                          <v-file-input
+                            v-model="formData.hasFile"
+                            label="Файлы"
+                            placeholder="Прикрепите необходимые документы"
+                            multiple
+                            chips
+                            counter
+                            show-size
+                            prepend-icon="mdi-paperclip"
+                            :rules="fileRules"
+                            variant="outlined"
+                            class="mb-6"
+                          ></v-file-input>
+                        </div>
+                  </div>
+                  
+                  <!-- Поля для объекта "Партнеры" -->
+                  <div v-else-if="formData.object === '16939'">
+                    <!-- Шаг 2: Данные партнера -->
+                    <div v-if="stepData.stepNumber === 2">
+                      <!-- Поля для КП (компания) -->
+                      <div v-if="formData.partnerType === 'КП (компания)' || formData.partnerType === '16961'">
+                        <v-text-field
+                          v-model="formData.name"
+                          label="Наименование"
+                          placeholder="Укажите: наименование (пример: Ромашка ООО)"
+                          :rules="[v => !!v || 'Наименование обязательно']"
+                          :maxlength="250"
+                          variant="outlined"
+                          counter
+                          class="mb-4"
+                        ></v-text-field>
+                        
+                        <!-- Телефон (множественное) -->
+                        <div class="mb-4">
+                          <div class="d-flex align-center mb-2">
+                            <v-text-field
+                              v-model="formData.phone"
+                              label="Телефон"
+                              v-mask="'+7 (###) ###-##-##'"
+                              placeholder="Укажите: номер в формате +7 (999) 999 99 99"
+                              :rules="phoneRules"
+                              :maxlength="25"
+                              variant="outlined"
+                              counter
+                              class="flex-grow-1 mr-2"
+                            ></v-text-field>
+                            <v-btn
+                              color="primary"
+                              variant="tonal"
+                              size="small"
+                              @click="addPhoneField"
+                            >
+                              <v-icon>mdi-plus</v-icon>
+                            </v-btn>
+                          </div>
+                          
+                          <!-- Дополнительные телефоны -->
+                          <div v-for="(phone, index) in formData.additionalPhones" :key="index" class="d-flex align-center mb-2">
+                            <v-text-field
+                              v-model="formData.additionalPhones[index]"
+                              :label="`Телефон ${index + 2}`"
+                              placeholder="Введите дополнительный телефон..."
+                              :rules="phoneRules"
+                              :maxlength="25"
+                              variant="outlined"
+                              counter
+                              class="flex-grow-1 mr-2"
+                            ></v-text-field>
+                            <v-btn
+                              color="error"
+                              variant="tonal"
+                              size="small"
+                              @click="removePhoneField(index)"
+                            >
+                              <v-icon>mdi-minus</v-icon>
+                            </v-btn>
+                          </div>
+                        </div>
+                        
+                        <!-- Email (множественное) -->
+                        <div class="mb-4">
+                          <div class="d-flex align-center mb-2">
+                            <v-text-field
+                              v-model="formData.email"
+                              label="Электронная почта"
+                              placeholder="Укажите: электронную почту в формате '…...@.....'"
+                              :rules="emailRules"
+                              :maxlength="50"
+                              variant="outlined"
+                              counter
+                              class="flex-grow-1 mr-2"
+                            ></v-text-field>
+                            <v-btn
+                              color="primary"
+                              variant="tonal"
+                              size="small"
+                              @click="addEmailField"
+                            >
+                              <v-icon>mdi-plus</v-icon>
+                            </v-btn>
+                          </div>
+                          
+                          <!-- Дополнительные email -->
+                          <div v-for="(email, index) in formData.additionalEmails" :key="index" class="d-flex align-center mb-2">
+                            <v-text-field
+                              v-model="formData.additionalEmails[index]"
+                              :label="`Email ${index + 2}`"
+                              placeholder="Введите дополнительный email..."
+                              :rules="emailRules"
+                              :maxlength="50"
+                              variant="outlined"
+                              counter
+                              class="flex-grow-1 mr-2"
+                            ></v-text-field>
+                            <v-btn
+                              color="error"
+                              variant="tonal"
+                              size="small"
+                              @click="removeEmailField(index)"
+                            >
+                              <v-icon>mdi-minus</v-icon>
+                            </v-btn>
+                          </div>
+                        </div>
+                        
+                        <!-- Бизнес-регион (множественный выбор) -->
+                        <v-autocomplete
+                          v-model="formData.businessRegion"
+                          :items="businessRegionOptions"
+                          label="Бизнес-регион"
+                          placeholder="Укажите: регион или область России"
+                          :rules="[v => !!v && v.length > 0 || 'Выберите хотя бы один бизнес-регион']"
+                          variant="outlined"
+                          multiple
+                          chips
+                          class="mb-4"
+                        ></v-autocomplete>
+                        
+                        <!-- Тип отношений (множественный выбор) -->
+                        <v-autocomplete
+                          v-model="formData.relationshipType"
+                          :items="relationshipTypeOptions"
+                          label="Тип отношений"
+                          placeholder="Укажите: тип взаимоотношений с партнером (выпадающий список)"
+                          variant="outlined"
+                          multiple
+                          chips
+                          class="mb-4"
+                        ></v-autocomplete>
+                        
+                        <v-text-field
+                          v-model="formData.legalAddress"
+                          label="Юридический адрес"
+                          placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
+                          :rules="[v => !!v || 'Юридический адрес обязателен']"
+                          :maxlength="250"
+                          variant="outlined"
+                          counter
+                          class="mb-4"
+                        ></v-text-field>
+                        
+                        <v-text-field
+                          v-model="formData.actualAddress"
+                          label="Фактический адрес"
+                          placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
+                          :maxlength="250"
+                          variant="outlined"
+                          counter
+                          class="mb-4"
+                        ></v-text-field>
+                        
+                        <v-checkbox
+                          v-model="formData.copyAddress"
+                          label="Скопировать юридический адрес в фактический"
+                          class="mb-4"
+                          @update:model-value="handleCopyAddress"
+                        ></v-checkbox>
+                        
+                        <!-- Категория B2 -->
+                        <v-autocomplete
+                          v-model="formData.categoryB2"
+                          :items="categoryB2Options"
+                          label="Категория B2"
+                          placeholder="Укажите: дополнительную аналитику по категории"
+                          variant="outlined"
+                          class="mb-4"
+                        ></v-autocomplete>
+                        
+                        <!-- Категория СА -->
+                        <v-autocomplete
+                          v-model="formData.categoryCA"
+                          :items="categoryCAOptions"
+                          label="Категория СА"
+                          placeholder="Укажите: дополнительную аналитику по категории"
+                          variant="outlined"
+                          class="mb-4"
+                        ></v-autocomplete>
+                        
+                        <!-- ЦКГ -->
+                        <v-autocomplete
+                          v-model="formData.ckg"
+                          :items="ckgOptions"
+                          label="ЦКГ"
+                          placeholder="Укажите: целевую клиентскую группу (выпадающий списко)"
+                          variant="outlined"
+                          class="mb-4"
+                        ></v-autocomplete>
+                        
+                        <!-- ЦКГ B2B -->
+                        <v-autocomplete
+                          v-model="formData.ckgB2B"
+                          :items="ckgB2BOptions"
+                          label="ЦКГ B2B"
+                          placeholder="Укажите: аналитика по целевым клиентским группам для B2B (выпадающий список)"
+                          variant="outlined"
+                          class="mb-4"
+                        ></v-autocomplete>
+                      </div>
+                      
+                      <!-- Поля для ЧЛ (частное лицо) -->
+                      <div v-else-if="formData.partnerType === '16963'">
+                        <v-text-field
+                          v-model="formData.name"
+                          label="Наименование"
+                          placeholder="Укажите: наименование (пример: Ромашка ООО)"
+                          :rules="[v => !!v || 'Наименование обязательно']"
+                          :maxlength="250"
+                          variant="outlined"
+                          counter
+                          class="mb-4"
+                        ></v-text-field>
+                        
+                        <!-- Телефон (множественное) -->
+                        <div class="mb-4">
+                          <div class="d-flex align-center mb-2">
+                            <v-text-field
+                              v-model="formData.phone"
+                              label="Телефон"
+                              v-mask="'+7 (###) ###-##-##'"
+                              placeholder="Укажите: номер в формате +7 (999) 999 99 99"
+                              :rules="phoneRules"
+                              :maxlength="25"
+                              variant="outlined"
+                              counter
+                              class="flex-grow-1 mr-2"
+                            ></v-text-field>
+                            <v-btn
+                              color="primary"
+                              variant="tonal"
+                              size="small"
+                              @click="addPhoneField"
+                            >
+                              <v-icon>mdi-plus</v-icon>
+                            </v-btn>
+                          </div>
+                          
+                          <!-- Дополнительные телефоны -->
+                          <div v-for="(phone, index) in formData.additionalPhones" :key="index" class="d-flex align-center mb-2">
+                            <v-text-field
+                              v-model="formData.additionalPhones[index]"
+                              :label="`Телефон ${index + 2}`"
+                              placeholder="Введите дополнительный телефон..."
+                              :rules="phoneRules"
+                              :maxlength="25"
+                              variant="outlined"
+                              counter
+                              class="flex-grow-1 mr-2"
+                            ></v-text-field>
+                            <v-btn
+                              color="error"
+                              variant="tonal"
+                              size="small"
+                              @click="removePhoneField(index)"
+                            >
+                              <v-icon>mdi-minus</v-icon>
+                            </v-btn>
+                          </div>
+                        </div>
+                        
+                        <!-- Email (множественное) -->
+                        <div class="mb-4">
+                          <div class="d-flex align-center mb-2">
+                            <v-text-field
+                              v-model="formData.email"
+                              label="Электронная почта"
+                              placeholder="Укажите: электронную почту в формате '…...@.....'"
+                              :rules="emailRules"
+                              :maxlength="50"
+                              variant="outlined"
+                              counter
+                              class="flex-grow-1 mr-2"
+                            ></v-text-field>
+                            <v-btn
+                              color="primary"
+                              variant="tonal"
+                              size="small"
+                              @click="addEmailField"
+                            >
+                              <v-icon>mdi-plus</v-icon>
+                            </v-btn>
+                          </div>
+                          
+                          <!-- Дополнительные email -->
+                          <div v-for="(email, index) in formData.additionalEmails" :key="index" class="d-flex align-center mb-2">
+                            <v-text-field
+                              v-model="formData.additionalEmails[index]"
+                              :label="`Email ${index + 2}`"
+                              placeholder="Введите дополнительный email..."
+                              :rules="emailRules"
+                              :maxlength="50"
+                              variant="outlined"
+                              counter
+                              class="flex-grow-1 mr-2"
+                            ></v-text-field>
+                            <v-btn
+                              color="error"
+                              variant="tonal"
+                              size="small"
+                              @click="removeEmailField(index)"
+                            >
+                              <v-icon>mdi-minus</v-icon>
+                            </v-btn>
+                          </div>
+                        </div>
+                        
+                        <!-- Поля для ЮЛН (юр лицо нерезидент) -->
+                        <div v-if="formData.isNonResident">
+                          <v-autocomplete
+                            v-model="formData.registrationCountry"
+                            :items="registrationCountryOptions"
+                            label="Страна регистрации"
+                            placeholder="Укажите: страну регистрации контрагента"
+                            :rules="[v => !!v || 'Страна регистрации обязательна']"
+                            variant="outlined"
+                            class="mb-4"
+                          ></v-autocomplete>
+                          
+                          <v-text-field
+                            v-model="formData.registrationNumber"
+                            label="Рег. номер"
+                            placeholder="Укажите: регистрационный номер в стране регистрации"
+                            :rules="[v => !!v || 'Регистрационный номер обязателен']"
+                            :maxlength="50"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                          
+                          <v-text-field
+                            v-model="formData.taxNumber"
+                            label="Налоговый номер"
+                            placeholder="Укажите: налоговый номер страны регистрации"
+                            :rules="[v => !!v || 'Налоговый номер обязателен']"
+                            :maxlength="50"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
+                        </div>
+                        
+                        <v-checkbox
+                          v-model="formData.isNonResident"
+                          label="ЮЛН (Юридическое лицо нерезедент)"
+                          class="mb-4"
+                        ></v-checkbox>
+                        
+                        <v-text-field
+                          v-model="formData.partner"
+                          label="Партнер"
+                          placeholder="Укажите: наименование из 1С ERP"
+                          :rules="[v => !!v || 'Партнер обязателен']"
+                          :maxlength="150"
+                          variant="outlined"
+                          counter
+                          class="mb-6"
+                        ></v-text-field>
+                      </div>
+                    </div>
+                    
+                    <!-- Шаг 3: Файлы -->
+                    <div v-if="stepData.stepNumber === 3">
+                      <v-file-input
+                        v-model="formData.hasFile"
+                        label="Файлы"
+                        placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
+                        multiple
+                        chips
+                        counter
+                        show-size
+                        prepend-icon="mdi-paperclip"
+                        :rules="fileRules"
+                        variant="outlined"
+                        class="mb-6"
+                      ></v-file-input>
+                    </div>
+                  </div>
+                  
+                  <!-- Поля для объекта "Типовые соглашения" -->
+                  <div v-else-if="formData.object === '16963'">
+                    <!-- Шаг 2: Данные типового соглашения -->
+                    <div v-if="stepData.stepNumber === 2">
+                      <h3 class="text-h6 mb-4">Данные типового соглашения</h3>
+                      <!-- Основание -->
+                      <v-text-field
+                        v-model="formData.typicalAgreementBasis"
+                        label="Основание"
+                        placeholder="Укажите: основание для отражения в системе (Укажите № приказа)"
+                        :maxlength="250"
+                        variant="outlined"
+                        counter
+                        class="mb-6"
+                      ></v-text-field>
+                      <!-- файл -->
+                      <v-file-input
+                        v-model="formData.typicalAgreementBasisFile"
+                        label="Файлы"
+                        placeholder="Прикрепите: файл-основание"
+                        multiple
+                        chips
+                        counter
+                        show-size
+                        prepend-icon="mdi-paperclip"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-file-input>
+                      <!-- Наименование -->
+                      <v-text-field
+                        v-model="formData.typicalAgreementName"
+                        label="Наименование"
+                        placeholder="Укажите: наименование соглашения (пример: КК 30%, 70% на 35КД)"
+                        :rules="[v => !!v || 'Наименование обязательно']"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Условия -->
+                      <v-textarea
+                        v-model="formData.typicalAgreementTerms"
+                        label="Условия"
+                        placeholder="Укажите: условия соглашения (размер предоплаты, количество дней отсрочки и др.)"
+                        :rules="[v => !!v || 'Условия обязательны']"
+                        :maxlength="150"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                      
+                      <!-- Операция (соглашение) -->
                       <v-autocomplete
-                        v-model="formData.bankAccountStatus"
-                        :items="bankAccountStatusOptions"
-                        label="Статус"
-                        placeholder="Укажите: значение из выпадающего списка"
-                        :rules="[v => !!v || 'Статус обязателен']"
+                        v-model="formData.typicalAgreementOperation"
+                        :items="agreementOperationOptions"
+                        label="Операция (соглашение)"
+                        placeholder="Укажите: тип операции (выпадающий список)"
+                        :rules="[v => !!v || 'Операция обязательна']"
                         item-title="title"
                         item-value="id"
                         variant="outlined"
                         required
                         class="mb-4"
                       ></v-autocomplete>
+                      
+                      <!-- Подразделение -->
+                      <v-text-field
+                        v-model="formData.typicalAgreementDepartment"
+                        label="Подразделение"
+                        placeholder="Укажите: подразделение инициатора"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Период действия с -->
+                      <v-text-field
+                        v-model="formData.typicalAgreementPeriodFrom"
+                        label="Период действия с"
+                        type="date"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Период действия по -->
+                      <v-checkbox
+                        v-model="formData.typicalAgreementPeriodTo"
+                        label="Период действия по (бессрочное)"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Валюта -->
+                      <v-autocomplete
+                        v-model="formData.typicalAgreementCurrency"
+                        :items="currencyOptions"
+                        label="Валюта"
+                        placeholder="Укажите: валюту расчетов"
+                        item-title="FULL_NAME"
+                        item-value="CURRENCY"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      <!-- График -->
+                      <v-textarea
+                        v-model="formData.typicalAgreementSchedule"
+                        label="График"
+                        placeholder="Укажите: как оплачивается продукция (отсрочка по дням, предоплата в % от суммы)"
+                        :maxlength="150"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                      
+                      <!-- Дополнительно -->
+                      <v-textarea
+                        v-model="formData.typicalAgreementAdditional"
+                        label="Дополнительно"
+                        placeholder="Укажите: дополнительную информацию по заявке"
+                        :maxlength="250"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                    </div>
+                  </div>
+
+                  <!-- Поля для объекта "Индивидуальные соглашения" -->
+                  <div v-else-if="formData.object === '17957'">
+                    <!-- Шаг 2: Данные индивидуального соглашения -->
+                    <div v-if="stepData.stepNumber === 2">
+                      <h3 class="text-h6 mb-4">Данные индивидуального соглашения</h3>
+                      <!-- Основание -->
+                      <v-text-field
+                        v-model="formData.individualAgreementBasis"
+                        label="Основание"
+                        placeholder="Укажите: основание для отражения в системе (Укажите № приказа)"
+                        :maxlength="250"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Основание (файл) -->
+                      <v-file-input
+                        v-model="formData.individualAgreementBasisFile"
+                        label="Файлы"
+                        placeholder="Прикрепите: файл-основание"
+                        multiple
+                        chips
+                        counter
+                        show-size
+                        prepend-icon="mdi-paperclip"
+                        variant="outlined"
+                        class="mb-6"
+                      ></v-file-input>
+                      <!-- Наименование -->
+                      <v-text-field
+                        v-model="formData.individualAgreementName"
+                        label="Наименование"
+                        placeholder="Укажите: наименование соглашения с номером и датой (пример: ИСВ с АВИИТ ООО, скидка 0% и Отсрочка после отгрузки 90 КД (100%))"
+                        :rules="[v => !!v || 'Наименование обязательно']"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Партнер -->
+                      <v-text-field
+                        v-model="formData.individualAgreementPartner"
+                        label="Партнер"
+                        placeholder="Укажите: наименование из 1С ERP"
+                        :rules="[v => !!v || 'Партнер обязателен']"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Организация -->
+                      <v-autocomplete
+                        v-model="formData.individualAgreementOrganization"
+                        :items="organizationOptions"
+                        label="Организация"
+                        placeholder="Укажите: наименование из 1С ERP (ОРТОНИКА ООО)"
+                        :rules="[v => !!v || 'Организация обязательна']"
+                        item-title="title"
+                        item-value="id"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Дата -->
+                      <v-text-field
+                        v-model="formData.individualAgreementDate"
+                        label="Дата"
+                        type="date"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Период действия с -->
+                      <v-text-field
+                        v-model="formData.individualAgreementPeriodFrom"
+                        label="Период действия с"
+                        type="date"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Период действия по -->
+                      <v-checkbox
+                        v-model="formData.individualAgreementPeriodTo"
+                        label="Период действия по (бессрочное)"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Номер -->
+                      <v-text-field
+                        v-model="formData.individualAgreementNumber"
+                        label="Номер"
+                        placeholder="Укажите: номер соглашения согласно подписанной версии"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Операция (соглашение) -->
+                      <v-autocomplete
+                        v-model="formData.individualAgreementOperation"
+                        :items="agreementOperationOptions"
+                        label="Операция (соглашение)"
+                        placeholder="Укажите: тип операции (выпадающий список)"
+                        :rules="[v => !!v || 'Операция обязательна']"
+                        item-title="title"
+                        item-value="id"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Тип соглашения -->
+                      <v-autocomplete
+                        v-model="formData.individualAgreementType"
+                        :items="agreementTypeOptions"
+                        label="Тип соглашения"
+                        placeholder="Укажите: значение из выпадающего списка"
+                        item-title="title"
+                        item-value="id"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Типовое соглашение -->
+                      <v-text-field
+                        v-model="formData.individualAgreementTypical"
+                        label="Типовое соглашение"
+                        placeholder="Укажите: типовое соглашение с условиями по оплате и отгрузке (пример: Опт, отсрочка 30 КД 100% от реал.)"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- График оплаты -->
+                      <v-textarea
+                        v-model="formData.individualAgreementPaymentSchedule"
+                        label="График оплаты"
+                        placeholder="Укажите: как оплачивается продукция (отсрочка по дням, предоплата в % от суммы)"
+                        :maxlength="150"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                      
+                      <!-- Валюта -->
+                      <v-autocomplete
+                        v-model="formData.individualAgreementCurrency"
+                        :items="currencyOptions"
+                        label="Валюта"
+                        placeholder="Укажите: валюту расчетов"
+                        item-title="FULL_NAME"
+                        item-value="CURRENCY"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Ценообразование -->
+                      <v-textarea
+                        v-model="formData.individualAgreementPricing"
+                        label="Ценообразование"
+                        placeholder="Укажите: применяемый прайс-лист"
+                        :maxlength="150"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                      
+                      <!-- Дополнительно -->
+                      <v-textarea
+                        v-model="formData.individualAgreementAdditional"
+                        label="Дополнительно"
+                        placeholder="Укажите: дополнительную информацию по заявке"
+                        :maxlength="150"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                    </div>
+                  </div>
+                  
+                  <!-- Поля для объекта "Договоры" -->
+                  <div v-else-if="formData.object === '16943'">
+                    <!-- Шаг 2: Данные договора -->
+                    <div v-if="stepData.stepNumber === 2">
+                      <!-- Цель договора -->
+                      <v-autocomplete
+                        v-model="formData.contractPurpose"
+                        :items="contractPurposeOptions"
+                        label="Цель договора"
+                        placeholder="Укажите: формат взаимодействия с контрагентом (выпадающий список)"
+                        :rules="[v => !!v || 'Цель договора обязательна']"
+                        item-title="title"
+                        item-value="id"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Номер договора -->
+                      <v-text-field
+                        v-model="formData.contractNumber"
+                        label="Номер договора"
+                        placeholder="Укажите: номер договора согласно подписанной версии"
+                        :rules="[v => !!v || 'Номер договора обязателен']"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Дата -->
+                      <v-text-field
+                        v-model="formData.contractDate"
+                        label="Дата договора"
+                        type="date"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Период действия с -->
+                      <v-text-field
+                        v-model="formData.contractPeriodFrom"
+                        label="Период действия с"
+                        type="date"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Период действия по -->
+                      <v-text-field
+                        v-model="formData.contractPeriodTo"
+                        label="Период действия по"
+                        type="date"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Наименование -->
+                      <v-text-field
+                        v-model="formData.contractName"
+                        label="Наименование договора"
+                        placeholder="Укажите: наименование договора с номером и датой (пример: Договор № 23/00 от 29.12.2020г.)"
+                        :rules="[v => !!v || 'Наименование договора обязательно']"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Подразделение -->
+                      <v-text-field
+                        v-model="formData.department"
+                        label="Подразделение"
+                        placeholder="Укажите: подразделение инициатора"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Организация -->
+                      <v-autocomplete
+                        v-model="formData.organization"
+                        :items="organizationOptions"
+                        label="Организация"
+                        placeholder="Укажите: наименование из 1С ERP (ОРТОНИКА ООО)"
+                        :rules="[v => !!v || 'Организация обязательна']"
+                        item-title="title"
+                        item-value="id"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Организация ИНН -->
+                      <v-text-field
+                        v-model="formData.organizationInn"
+                        label="Организация ИНН"
+                        placeholder="Введите ИНН организации..."
+                        :rules="getInnRules()"
+                        maxlength="12"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Счет организации -->
+                      <v-text-field
+                        v-model="formData.organizationAccount"
+                        label="Счет организации"
+                        placeholder="Укажите: расчетный счет организации"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
                       
                       <!-- Контрагент -->
                       <v-text-field
@@ -160,207 +1532,163 @@
                         label="Контрагент ИНН"
                         placeholder="Введите ИНН контрагента..."
                         :rules="getInnRules()"
-                        :maxlength="12"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      <v-text-field
-                        v-model="formData.counterpartyInn"
-                        label="КПП"
-                        placeholder=""
-                        :maxlength="12"
+                        maxlength="12"
                         variant="outlined"
                         counter
                         class="mb-4"
                       ></v-text-field>
                       
-                      <!-- Вид банка -->
+                      <!-- Партнер -->
+                      <v-text-field
+                        v-model="formData.partner"
+                        label="Партнер"
+                        placeholder="Укажите: наименование из 1С ERP"
+                        :rules="[v => !!v || 'Партнер обязателен']"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Детализация расчётов -->
                       <v-autocomplete
-                        v-model="formData.bankType"
-                        :items="bankTypeOptions"
-                        label="Вид банка"
-                        placeholder="Укажите: значение из выпадающего списка"
-                        :rules="[v => !!v || 'Вид банка обязателен']"
+                        v-model="formData.paymentDetails"
+                        :items="paymentDetailsOptions"
+                        label="Детализация расчётов"
+                        placeholder="Укажите: применяемый вид расчетов по договору (выпадающий список)"
+                        :rules="[v => !!v || 'Детализация расчётов обязательна']"
                         item-title="title"
                         item-value="id"
                         variant="outlined"
                         required
                         class="mb-4"
-                        @update:model-value="handleBankTypeChange"
                       ></v-autocomplete>
-                    </div>
-                    
-                    <!-- Шаг 3: Данные банка -->
-                    <div v-if="stepData.stepNumber === 3">
-                      <!-- Для национального банка -->
-                      <div v-if="formData.bankType === 'national' || formData.bankType === '16971'">
-                        <!-- БИК -->
-                        <v-text-field
-                          v-model="formData.bik"
-                          label="БИК"
-                          placeholder="Укажите: цифровой код идентификации банка (9 символов)"
-                          :rules="bikRules"
-                          :maxlength="9"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Наименование банка -->
-                        <v-text-field
-                          v-model="formData.bankName"
-                          label="Наименование банка"
-                          placeholder="Укажите: наименование банка (пример: СИБИРСКИЙ БАНК ПАО СБЕРБАНК)"
-                          :rules="[v => !!v || 'Наименование банка обязательно']"
-                          :maxlength="150"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Валюта -->
-                        <v-autocomplete
-                          v-model="formData.currency"
-                          :items="currencyOptions"
-                          label="Валюта"
-                          placeholder="Укажите: валюту расчетов"
-                          :rules="[v => !!v || 'Валюта обязательна']"
-                          item-title="FULL_NAME"
-                          item-value="CURRENCY"
-                          variant="outlined"
-                          required
-                          class="mb-4"
-                        ></v-autocomplete>
-                        
-                        <!-- Расчетный счет -->
-                        <v-text-field
-                          v-model="formData.accountNumber"
-                          label="Расчетный счет"
-                          placeholder="Введите расчетный счет..."
-                          :rules="accountNumberRules"
-                          :maxlength="20"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Корреспондентский счет -->
-                        <v-text-field
-                          v-model="formData.correspondentAccount"
-                          label="Корреспондентский счет"
-                          placeholder="Введите корреспондентский счет..."
-                          :rules="correspondentAccountRules"
-                          :maxlength="20"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Адрес -->
-                        <v-text-field
-                          v-model="formData.bankAddress"
-                          label="Адрес банка"
-                          placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                          :maxlength="250"
-                          variant="outlined"
-                          counter
-                          class="mb-6"
-                        ></v-text-field>
-                      </div>
                       
-                      <!-- Для международного банка -->
-                      <div v-else-if="formData.bankType === 'international' || formData.bankType === '16973'">
-                        <!-- SWIFT -->
-                        <v-text-field
-                          v-model="formData.swift"
-                          label="SWIFT"
-                          placeholder="Укажите: код идентификации банка для международных операций (8-11 символов)"
-                          :rules="swiftRules"
-                          :maxlength="11"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Наименование банка -->
-                        <v-text-field
-                          v-model="formData.bankName"
-                          label="Наименование банка"
-                          placeholder="Укажите: наименование банка (пример: СИБИРСКИЙ БАНК ПАО СБЕРБАНК)"
-                          :rules="[v => !!v || 'Наименование банка обязательно']"
-                          :maxlength="150"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Страна регистрации и город -->
-                        <v-text-field
-                          v-model="formData.bankRegistrationCity"
-                          label="Страна регистрации и город"
-                          placeholder="Укажите: страну регистрации и город"
-                          :rules="[v => !!v || 'Страна и город обязательны']"
-                          :maxlength="100"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Адрес -->
-                        <v-text-field
-                          v-model="formData.bankAddress"
-                          label="Адрес банка"
-                          placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                          :maxlength="250"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Валюта -->
-                        <v-autocomplete
-                          v-model="formData.currency"
-                          :items="currencyOptions"
-                          label="Валюта"
-                          placeholder="Укажите: валюту расчетов"
-                          :rules="[v => !!v || 'Валюта обязательна']"
-                          item-title="FULL_NAME"
-                          item-value="CURRENCY"
-                          variant="outlined"
-                          required
-                          class="mb-4"
-                        ></v-autocomplete>
-                        
-                        <!-- Расчетный счет -->
-                        <v-text-field
-                          v-model="formData.accountNumber"
-                          label="Расчетный счет"
-                          placeholder="Введите расчетный счет..."
-                          :rules="accountNumberRules"
-                          :maxlength="20"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <!-- Корреспондентский счет -->
-                        <v-text-field
-                          v-model="formData.correspondentAccount"
-                          label="Корреспондентский счет"
-                          placeholder="Введите корреспондентский счет..."
-                          :rules="correspondentAccountRules"
-                          :maxlength="20"
-                          variant="outlined"
-                          counter
-                          class="mb-6"
-                        ></v-text-field>
-                      </div>
-                    </div>
-                    
-                    <!-- Шаг 4: Файлы -->
-                    <div v-if="stepData.stepNumber === 4">
-                      <!-- Файлы -->
+                      <!-- Валюта -->
+                      <v-autocomplete
+                        v-model="formData.currency"
+                        :items="currencyOptions"
+                        label="Валюта"
+                        placeholder="Укажите: валюту расчетов"
+                        :rules="[v => !!v || 'Валюта обязательна']"
+                        item-title="FULL_NAME"
+                        item-value="CURRENCY"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Оплата в иностранной валюте -->
+                      <v-checkbox
+                        v-model="formData.foreignCurrencyPayment"
+                        label="Оплата в иностранной валюте"
+                        placeholder="Укажите: расчеты осуществляются в иностранной валюте"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Сумма договора фиксирована -->
+                      <v-checkbox
+                        v-model="formData.fixedContractAmount"
+                        label="Сумма договора фиксирована"
+                        placeholder="Укажите: фиксируется ли договор определенной суммой"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Разрешена работа с дочерними партнерами -->
+                      <v-checkbox
+                        v-model="formData.allowSubsidiaryPartners"
+                        label="Разрешена работа с дочерними партнерами"
+                        placeholder="Укажите: возможность проведения взаиморасчетов между партнерами"
+                        class="mb-4"
+                      ></v-checkbox>
+
+                      <!-- Маркируемая продукция -->
+                      <v-autocomplete
+                        v-model="formData.labeledProducts"
+                        :items="labeledProductsOptions"
+                        label="Маркируемая продукция"
+                        placeholder="Укажите: продукция выбывает из оборота или нет"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Запрещать отгрузку -->
+                      <v-checkbox
+                        v-model="formData.prohibitShipment"
+                        label="Запрещать отгрузку"
+                        placeholder="Укажите: запрещается ли отгрузка при достижении лимита задолженности"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Не отгружать при сумме задолженности -->
+                      <v-checkbox
+                        v-model="formData.dontShipOnDebt"
+                        label="Не отгружать при сумме задолженности"
+                        placeholder="Укажите: лимит задолженности для осуществления отгрузки"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Сумма задолженности -->
+                      <v-text-field
+                        v-model="formData.debtAmount"
+                        label="Сумма задолженности"
+                        placeholder="Укажите: сумму задолженности, после которой будут прекращены отгрузки"
+                        type="number"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Ставка НДС -->
+                      <v-autocomplete
+                        v-model="formData.vatRate"
+                        :items="vatRateOptions"
+                        label="Ставка НДС"
+                        placeholder="Укажите: значение из выпадающего списка"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Группа фин. учета -->
+                      <v-autocomplete
+                        v-model="formData.financialGroup"
+                        :items="financialGroupOptions"
+                        label="Группа фин. учета"
+                        placeholder="Укажите: применяемый бухгалтерский счет учета"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Статья ДДС -->
+                      <v-autocomplete
+                        v-model="formData.ddsArticle"
+                        :items="ddsArticleOptions"
+                        label="Статья ДДС"
+                        placeholder="Укажите: используемую статью движения денежных средств для аналитики"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Классификация задолженности -->
+                      <v-autocomplete
+                        v-model="formData.debtClassification"
+                        :items="debtClassificationOptions"
+                        label="Классификация задолженности"
+                        placeholder="Укажите: значение из выпадающего списка"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Операция декларации по НДС -->
+                      <v-autocomplete
+                        v-model="formData.vatDeclarationOperation"
+                        :items="vatDeclarationOperationOptions"
+                        label="Операция декларации по НДС"
+                        placeholder="Укажите: значение из выпадающего списка"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Файл -->
                       <v-file-input
                         v-model="formData.hasFile"
                         label="Файлы"
@@ -376,893 +1704,148 @@
                       ></v-file-input>
                     </div>
                   </div>
-                <!-- Для объекта "Комплексное добавление: Контрагент + Договор" (17961) -->
-                <div v-else-if="formData.object === '17961'">
-                  <!-- Шаг 2: Данные контрагента -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <h3 class="text-h6 mb-4">Данные контрагента</h3>
-                    
-                    <v-autocomplete
-                      v-model="formData.complexCounterpartyType"
-                      :items="counterpartyTypeOptions"
-                      label="Вид контрагента"
-                      placeholder="Укажите: правовой статус контрагента"
-                      :rules="[v => !!v || 'Вид контрагента обязателен']"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <v-text-field
-                      v-model="formData.complexInn"
-                      placeholder="Введите ИНН..."
-                      :rules="getInnRules()"
-                     :maxlength="12"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <v-text-field
-                      v-model="formData.complexName"
-                      label="Наименование"
-                      placeholder="Введите наименование..."
-                      :rules="[v => !!v || 'Наименование обязательно']"
-                      :maxlength="100"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Дополнительные поля для контрагента -->
-                    <v-text-field
-                      v-model="formData.complexLegalAddress"
-                      label="Юридический адрес"
-                      placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                      :rules="[v => !!v || 'Юридический адрес обязателен']"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <v-text-field
-                      v-model="formData.complexPhone"
-                      label="Телефон"
-                      v-mask="'+7 (###) ###-##-##'"
-                      placeholder="Укажите: номер в формате +7 (999) 999 99 99"
-                      :rules="phoneRules"
-                      :maxlength="20"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <v-text-field
-                      v-model="formData.complexEmail"
-                      label="Электронная почта"
-                      placeholder="Укажите: электронную почту в формате '…...@.....'"
-                      :rules="emailRules"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-6"
-                    ></v-text-field>
-                  </div>
                   
-                  <!-- Шаг 3: Данные договора -->
-                  <div v-if="stepData.stepNumber === 3">
-                    <h3 class="text-h6 mb-4">Данные договора</h3>
-                    
-                    <!-- Цель договора -->
-                    <v-autocomplete
-                      v-model="formData.contractPurpose"
-                      :items="contractPurposeOptions"
-                      label="Цель договора"
-                      placeholder="Укажите: формат взаимодействия с контрагентом (выпадающий список)"
-                      :rules="[v => !!v || 'Цель договора обязательна']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Номер договора -->
-                    <v-text-field
-                      v-model="formData.contractNumber"
-                      label="Номер договора"
-                      placeholder="Укажите: номер договора согласно подписанной версии"
-                      :rules="[v => !!v || 'Номер договора обязателен']"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Дата договора -->
-                    <v-text-field
-                      v-model="formData.contractDate"
-                      label="Дата договора"
-                      type="date"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Наименование договора -->
-                    <v-text-field
-                      v-model="formData.contractName"
-                      label="Наименование договора"
-                      placeholder="Укажите: наименование договора с номером и датой (пример: Договор № 23/00 от 29.12.2020г.)"
-                      :rules="[v => !!v || 'Наименование договора обязательно']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Валюта -->
-                    <v-autocomplete
-                      v-model="formData.currency"
-                      :items="currencyOptions"
-                      label="Валюта"
-                      placeholder="Укажите: валюту расчетов"
-                      :rules="[v => !!v || 'Валюта обязательна']"
-                      item-title="FULL_NAME"
-                      item-value="CURRENCY"
-                      variant="outlined"
-                      required
-                      class="mb-6"
-                    ></v-autocomplete>
-                  </div>
-                </div>
-                
-                <!-- Для объекта "Комплексное добавление: Партнер + Контрагент + Договор" (17959) -->
-                <div v-else-if="formData.object === '17959'">
-                  <!-- Шаг 2: Данные партнера -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <h3 class="text-h6 mb-4">Данные партнера</h3>
-                    
-                    <v-autocomplete
-                      v-model="formData.complexPartnerType"
-                      :items="partnerTypeOptions"
-                      label="Вид партнера"
-                      placeholder="Выберите вид партнера..."
-                      :rules="[v => !!v || 'Вид партнера обязателен']"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <v-text-field
-                      v-model="formData.complexPartnerName"
-                      label="Наименование партнера"
-                      placeholder="Введите наименование..."
-                      :rules="[v => !!v || 'Наименование обязательно']"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-
-                    <!-- Телефон -->
-                    <v-text-field
-                      v-model="formData.complexPartnerPhone"
-                      label="Телефон"
-                      v-mask="'+7 (###) ###-##-##'"
-                      placeholder="Укажите: номер в формате +7 (999) 999 99 99"
-                      :rules="phoneRules"
-                      :maxlength="25"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Email -->
-                    <v-text-field
-                      v-model="formData.complexPartnerEmail"
-                      label="Электронная почта"
-                      placeholder="Укажите: электронную почту в формате '…...@.....'"
-                      :rules="emailRules"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-6"
-                    ></v-text-field>
-                  </div>
-                  
-                  <!-- Шаг 3: Данные контрагента -->
-                  <div v-if="stepData.stepNumber === 3">
-                    <h3 class="text-h6 mb-4">Данные контрагента</h3>
-                    
-                    <v-autocomplete
-                      v-model="formData.complexCounterpartyType2"
-                      :items="counterpartyTypeOptions"
-                      label="Вид контрагента"
-                      placeholder="Укажите: правовой статус контрагента"
-                      :rules="[v => !!v || 'Вид контрагента обязателен']"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <v-text-field
-                      v-model="formData.complexCounterpartyInn"
-                      placeholder="Введите ИНН..."
-                      :rules="getInnRules()"
-                      :maxlength="12"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <v-text-field
-                      v-model="formData.complexCounterpartyName"
-                      label="Наименование контрагента"
-                      placeholder="Введите наименование..."
-                      :rules="[v => !!v || 'Наименование обязательно']"
-                      :maxlength="100"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <v-text-field
-                      v-model="formData.complexCounterpartyLegalAddress"
-                      label="Юридический адрес"
-                      placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                      :rules="[v => !!v || 'Юридический адрес обязателен']"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-6"
-                    ></v-text-field>
-                  </div>
-                  
-                  <!-- Шаг 4: Данные договора -->
-                  <div v-if="stepData.stepNumber === 4">
-                    <h3 class="text-h6 mb-4">Данные договора</h3>
-                    
-                    <!-- Цель договора -->
-                    <v-autocomplete
-                      v-model="formData.complexContractPurpose"
-                      :items="contractPurposeOptions"
-                      label="Цель договора"
-                      placeholder="Укажите: формат взаимодействия с контрагентом (выпадающий список)"
-                      :rules="[v => !!v || 'Цель договора обязательна']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Номер договора -->
-                    <v-text-field
-                      v-model="formData.complexContractNumber"
-                      label="Номер договора"
-                      placeholder="Укажите: номер договора согласно подписанной версии"
-                      :rules="[v => !!v || 'Номер договора обязателен']"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Дата договора -->
-                    <v-text-field
-                      v-model="formData.complexContractDate"
-                      label="Дата договора"
-                      type="date"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Наименование договора -->
-                    <v-text-field
-                      v-model="formData.complexContractName"
-                      label="Наименование договора"
-                      placeholder="Укажите: наименование договора с номером и датой (пример: Договор № 23/00 от 29.12.2020г.)"
-                      :rules="[v => !!v || 'Наименование договора обязательно']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Валюта -->
-                    <v-autocomplete
-                      v-model="formData.complexCurrency"
-                      :items="currencyOptions"
-                      label="Валюта"
-                      placeholder="Укажите: валюту расчетов"
-                      :rules="[v => !!v || 'Валюта обязательна']"
-                      item-title="FULL_NAME"
-                      item-value="CURRENCY"
-                      variant="outlined"
-                      required
-                      class="mb-6"
-                    ></v-autocomplete>
-                    
-                    <!-- Файлы -->
-                    <v-file-input
-                      v-model="formData.complexHasFile"
-                      label="Файлы"
-                      placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
-                      multiple
-                      chips
-                      counter
-                      show-size
-                      prepend-icon="mdi-paperclip"
-                      :rules="fileRules"
-                      variant="outlined"
-                      class="mb-6"
-                    ></v-file-input>
-                  </div>
-                </div>
-                
-                <!-- Поля для объекта "Типовые соглашения" -->
-                <div v-else-if="formData.object === '16963'">
-                  <!-- Шаг 2: Данные типового соглашения -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <h3 class="text-h6 mb-4">Данные типового соглашения</h3>
-                    
-                    <!-- Наименование -->
-                    <v-text-field
-                      v-model="formData.typicalAgreementName"
-                      label="Наименование"
-                      placeholder="Укажите: наименование соглашения (пример: КК 30%, 70% на 35КД)"
-                      :rules="[v => !!v || 'Наименование обязательно']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Условия -->
-                    <v-textarea
-                      v-model="formData.typicalAgreementTerms"
-                      label="Условия"
-                      placeholder="Укажите: условия соглашения (размер предоплаты, количество дней отсрочки и др.)"
-                      :rules="[v => !!v || 'Условия обязательны']"
-                      :maxlength="150"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Операция (соглашение) -->
-                    <v-autocomplete
-                      v-model="formData.typicalAgreementOperation"
-                      :items="agreementOperationOptions"
-                      label="Операция (соглашение)"
-                      placeholder="Укажите: тип операции (выпадающий список)"
-                      :rules="[v => !!v || 'Операция обязательна']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Подразделение -->
-                    <v-text-field
-                      v-model="formData.typicalAgreementDepartment"
-                      label="Подразделение"
-                      placeholder="Укажите: подразделение инициатора"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Период действия с -->
-                    <v-text-field
-                      v-model="formData.typicalAgreementPeriodFrom"
-                      label="Период действия с"
-                      type="date"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Период действия по -->
-                    <v-checkbox
-                      v-model="formData.typicalAgreementPeriodTo"
-                      label="Период действия по (бессрочное)"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Валюта -->
-                    <v-text-field
-                      v-model="formData.typicalAgreementCurrency"
-                      label="Валюта"
-                      placeholder="Укажите: валюту расчетов"
-                      :maxlength="20"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- График -->
-                    <v-textarea
-                      v-model="formData.typicalAgreementSchedule"
-                      label="График"
-                      placeholder="Укажите: как оплачивается продукция (отсрочка по дням, предоплата в % от суммы)"
-                      :maxlength="150"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Дополнительно -->
-                    <v-textarea
-                      v-model="formData.typicalAgreementAdditional"
-                      label="Дополнительно"
-                      placeholder="Укажите: дополнительную информацию по заявке"
-                      :maxlength="250"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- файл -->
-                    <v-file-input
-                      v-model="formData.typicalAgreementBasisFile"
-                      label="Файлы"
-                      placeholder="Прикрепите: файл-основание"
-                      multiple
-                      chips
-                      counter
-                      show-size
-                      prepend-icon="mdi-paperclip"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-file-input>
-                    
-                    <!-- Основание -->
-                    <v-text-field
-                      v-model="formData.typicalAgreementBasis"
-                      label="Основание"
-                      placeholder="Укажите: основание для отражения в системе (Укажите № приказа)"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-6"
-                    ></v-text-field>
-                  </div>
-                </div>
-
-                <!-- Поля для объекта "Индивидуальные соглашения" -->
-                <div v-else-if="formData.object === '17957'">
-                  <!-- Шаг 2: Данные индивидуального соглашения -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <h3 class="text-h6 mb-4">Данные индивидуального соглашения</h3>
-                    
-                    <!-- Наименование -->
-                    <v-text-field
-                      v-model="formData.individualAgreementName"
-                      label="Наименование"
-                      placeholder="Укажите: наименование соглашения с номером и датой (пример: ИСВ с АВИИТ ООО, скидка 0% и Отсрочка после отгрузки 90 КД (100%))"
-                      :rules="[v => !!v || 'Наименование обязательно']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Партнер (код) 
-                    <v-text-field
-                      v-model="formData.individualAgreementPartnerCode"
-                      label="Партнер (код)"
-                      placeholder="Укажите: код из 1С ERP"
-                      :rules="[v => !!v || 'Код партнера обязателен']"
-                      :maxlength="20"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    -->
-                    <!-- Партнер -->
-                    <v-text-field
-                      v-model="formData.individualAgreementPartner"
-                      label="Партнер"
-                      placeholder="Укажите: наименование из 1С ERP"
-                      :rules="[v => !!v || 'Партнер обязателен']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Организация -->
-                    <v-autocomplete
-                      v-model="formData.individualAgreementOrganization"
-                      :items="organizationOptions"
-                      label="Организация"
-                      placeholder="Укажите: наименование из 1С ERP (ОРТОНИКА ООО)"
-                      :rules="[v => !!v || 'Организация обязательна']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Дата -->
-                    <v-text-field
-                      v-model="formData.individualAgreementDate"
-                      label="Дата"
-                      type="date"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Период действия с -->
-                    <v-text-field
-                      v-model="formData.individualAgreementPeriodFrom"
-                      label="Период действия с"
-                      type="date"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Период действия по -->
-                    <v-checkbox
-                      v-model="formData.individualAgreementPeriodTo"
-                      label="Период действия по (бессрочное)"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Номер -->
-                    <v-text-field
-                      v-model="formData.individualAgreementNumber"
-                      label="Номер"
-                      placeholder="Укажите: номер соглашения согласно подписанной версии"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Операция (соглашение) -->
-                    <v-autocomplete
-                      v-model="formData.individualAgreementOperation"
-                      :items="agreementOperationOptions"
-                      label="Операция (соглашение)"
-                      placeholder="Укажите: тип операции (выпадающий список)"
-                      :rules="[v => !!v || 'Операция обязательна']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Тип соглашения -->
-                    <v-autocomplete
-                      v-model="formData.individualAgreementType"
-                      :items="agreementTypeOptions"
-                      label="Тип соглашения"
-                      placeholder="Укажите: значение из выпадающего списка"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Типовое соглашение -->
-                    <v-text-field
-                      v-model="formData.individualAgreementTypical"
-                      label="Типовое соглашение"
-                      placeholder="Укажите: типовое соглашение с условиями по оплате и отгрузке (пример: Опт, отсрочка 30 КД 100% от реал.)"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- График оплаты -->
-                    <v-textarea
-                      v-model="formData.individualAgreementPaymentSchedule"
-                      label="График оплаты"
-                      placeholder="Укажите: как оплачивается продукция (отсрочка по дням, предоплата в % от суммы)"
-                      :maxlength="150"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Валюта -->
-                    <v-autocomplete
-                      v-model="formData.individualAgreementCurrency"
-                      :items="currencyOptions"
-                      label="Валюта"
-                      placeholder="Укажите: валюту расчетов"
-                      item-title="FULL_NAME"
-                      item-value="CURRENCY"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Ценообразование -->
-                    <v-textarea
-                      v-model="formData.individualAgreementPricing"
-                      label="Ценообразование"
-                      placeholder="Укажите: применяемый прайс-лист"
-                      :maxlength="150"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Дополнительно -->
-                    <v-textarea
-                      v-model="formData.individualAgreementAdditional"
-                      label="Дополнительно"
-                      placeholder="Укажите: дополнительную информацию по заявке"
-                      :maxlength="150"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Основание -->
-                    <v-text-field
-                      v-model="formData.individualAgreementBasis"
-                      label="Основание"
-                      placeholder="Укажите: основание для отражения в системе (Укажите № приказа)"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Основание (файл) -->
-                    <v-file-input
-                      v-model="formData.individualAgreementBasisFile"
-                      label="Файлы"
-                      placeholder="Прикрепите: файл-основание"
-                      multiple
-                      chips
-                      counter
-                      show-size
-                      prepend-icon="mdi-paperclip"
-                      variant="outlined"
-                      class="mb-6"
-                    ></v-file-input>
-                  </div>
-                </div>
-                
-                <!-- Поля для объекта "Контрагенты" -->
-                <div v-else-if="formData.object === '16937'">
-                  <!-- Поля для добавления контрагента -->
-                  <div v-if="formData.type === '16931'">
-                    <!-- Шаг 2: Основные данные контрагента -->
+                  <!-- Поля для объекта "Склады" -->
+                  <div v-else-if="formData.object === '16945'">
+                    <!-- Шаг 2: Данные склада -->
                     <div v-if="stepData.stepNumber === 2">
-                      <!-- Общие поля для всех видов контрагентов -->
+                      <!-- Тип склада -->
+                      <v-autocomplete
+                        v-model="formData.warehouseType"
+                        :items="warehouseTypeOptions"
+                        label="Тип склада"
+                        placeholder="Укажите: в зависимости от формата продаж (выпадающий список)"
+                        :rules="[v => !!v || 'Тип склада обязателен']"
+                        item-title="title"
+                        item-value="id"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Группа складов -->
                       <v-text-field
-                        v-model="formData.inn"
-                        label="ИНН"
-                        placeholder="Введите ИНН..."
-                        :rules="getInnRules()"
-                        :maxlength="12"
+                        v-model="formData.warehouseGroup"
+                        label="Группа складов"
+                        placeholder="Укажите: к какой группе относится (основной, инвентаризация, соисполнители, участки производства и др.)"
+                        :maxlength="50"
                         variant="outlined"
                         counter
                         class="mb-4"
                       ></v-text-field>
                       
+                      <!-- Наименование -->
                       <v-text-field
-                        v-model="formData.name"
-                        label="Наименование"
-                        placeholder="Укажите: наименование (пример: Ромашка ООО)"
-                        :rules="[v => !!v || 'Наименование обязательно']"
-                        :maxlength="100"
+                        v-model="formData.warehouseName"
+                        label="Наименование склада"
+                        placeholder="Укажите: наименование склада"
+                        :rules="[v => !!v || 'Наименование склада обязательно']"
+                        :maxlength="50"
                         variant="outlined"
                         counter
                         class="mb-4"
                       ></v-text-field>
                       
+                      <!-- Источник информации о ценах -->
+                      <v-autocomplete
+                        v-model="formData.priceSource"
+                        :items="priceSourceOptions"
+                        label="Источник информации о ценах"
+                        placeholder="Укажите: значение из выпадающего списка"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Учетный вид цены -->
                       <v-text-field
-                        v-model="formData.shortName"
-                        label="Сокр. наименование"
-                        placeholder="Укажите: наименование (пример: ООО 'Ромашка')"
-                        :rules="[v => !!v || 'Сокращенное наименование обязательно']"
-                        :maxlength="250"
+                        v-model="formData.accountingPriceType"
+                        label="Учетный вид цены"
+                        placeholder="Укажите: применяемый прайс-лист (если применимо)"
+                        :maxlength="50"
                         variant="outlined"
                         counter
                         class="mb-4"
                       ></v-text-field>
                       
-                      <!-- Поля для ЮЛ -->
-                      <div v-if="formData.counterpartyType === 'ЮЛ (Юридическое лицо)'">
-                        <v-text-field
-                          v-model="formData.kpp"
-                          label="КПП"
-                          placeholder="Введите КПП..."
-                          :rules="kppRules"
-                          :maxlength="9"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <v-text-field
-                          v-model="formData.ogrn"
-                          label="ОГРН"
-                          placeholder="Введите ОГРН..."
-                          :rules="ogrnRules"
-                          :maxlength="15"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <v-text-field
-                          v-model="formData.okpo"
-                          label="ОКПО"
-                          placeholder="Введите ОКПО..."
-                          :rules="okpoRules"
-                          :maxlength="10"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                      </div>
-                      
-                      <!-- Поля для ОПЮЛ -->
-                      <div v-if="formData.counterpartyType === 'ОПЮЛ (Обособленное подразделение юридического лица)'">
-                        <v-text-field
-                          v-model="formData.kpp"
-                          label="КПП"
-                          placeholder="Введите КПП..."
-                          :rules="kppRules"
-                          :maxlength="9"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <v-text-field
-                          v-model="formData.ogrn"
-                          label="ОГРН"
-                          placeholder="Введите ОГРН..."
-                          :rules="ogrnRules"
-                          :maxlength="15"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <v-text-field
-                          v-model="formData.headInn"
-                          label="ИНН Головного к/а"
-                          placeholder="Введите ИНН головного контрагента..."
-                          :rules="getInnRules()"
-                          :maxlength="12"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <v-text-field
-                          v-model="formData.headCounterparty"
-                          label="Головной контрагент"
-                          placeholder="Укажите: головного контрагента у обособленного подразделения (если применимо)"
-                          :rules="[v => !!v || 'Головной контрагент обязателен']"
-                          :maxlength="50"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                      </div>
-                      
-                      <!-- Поля для ФЛ -->
-                      <div v-if="formData.counterpartyType === 'ФЛ (Физическое лицо)'">
-                        <v-text-field
-                          v-model="formData.identityDocument"
-                          label="Документ удост. личность"
-                          placeholder="Укажите: реквизиты паспорта или другого документа, удостоверяющего личность"
-                          :rules="[v => !!v || 'Документ обязателен']"
-                          :maxlength="150"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                      </div>
-                      
-                      <!-- Поля для ИП -->
-                      <div v-if="formData.counterpartyType === 'ИП (Индивидуальный предприниматель)'">
-                        <v-text-field
-                          v-model="formData.ogrnip"
-                          label="ОГРНИП"
-                          placeholder="Введите ОГРНИП..."
-                          :rules="ogrnipRules"
-                          :maxlength="15"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                      </div>
-                      
-                      <!-- Поля для ЮЛН -->
-                      <div v-if="formData.counterpartyType === 'ЮЛН (Юридическое лицо нерезедент)'">
-                        <v-autocomplete
-                          v-model="formData.registrationCountry"
-                          :items="registrationCountryOptions"
-                          item-title="NAME"
-                          item-value="NAME"
-                          label="Страна регистрации"
-                          placeholder="Укажите: страну регистрации контрагента"
-                          :rules="[v => !!v || 'Страна регистрации обязательна']"
-                          variant="outlined"
-                          class="mb-4"
-                        ></v-autocomplete>
-                        
-                        <v-text-field
-                          v-model="formData.registrationNumber"
-                          label="Рег. номер"
-                          placeholder="Укажите: регистрационный номер в стране регистрации"
-                          :rules="[v => !!v || 'Регистрационный номер обязателен']"
-                          :maxlength="50"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <v-text-field
-                          v-model="formData.taxNumber"
-                          label="Налоговый номер"
-                          placeholder="Укажите: налоговый номер страны регистрации"
-                          :rules="[v => !!v || 'Налоговый номер обязателен']"
-                          :maxlength="50"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                      </div>
-                      
-                      <!-- Общие поля для всех видов контрагентов -->
-                      <v-text-field
-                        v-model="formData.legalAddress"
-                        label="Юридический адрес"
-                        placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                        :rules="[v => !!v || 'Юридический адрес обязателен']"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <v-text-field
-                        v-model="formData.actualAddress"
-                        label="Фактический адрес"
-                        placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
+                      <!-- Контролировать свободные остатки -->
                       <v-checkbox
-                        v-model="formData.copyAddress"
-                        label="Скопировать юридический адрес в фактический"
+                        v-model="formData.controlFreeBalance"
+                        label="Контролировать свободные остатки"
+                        placeholder="Укажите: проводится ли проверка наличия достаточного количества ТМЦ перед проведением документов"
                         class="mb-4"
-                        @update:model-value="handleCopyAddress"
                       ></v-checkbox>
                       
+                      <!-- Контролировать оперативные остатки -->
+                      <v-checkbox
+                        v-model="formData.controlOperationalBalance"
+                        label="Контролировать оперативные остатки"
+                        placeholder="Укажите: проводится ли проверка наличия ТМЦ при проведении документов"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Подразделение -->
                       <v-text-field
-                        v-model="formData.phone"
-                        label="Телефон"
-                        v-mask="'+7 (###) ###-##-##'"
+                        v-model="formData.department"
+                        label="Подразделение"
+                        placeholder="Укажите: подразделение инициатора"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Ответственный (МОЛ) -->
+                      <v-text-field
+                        v-model="formData.responsiblePerson"
+                        label="Ответственный (МОЛ)"
+                        placeholder="Укажите: материально-ответственное лицо (пример: Иванов Андрей Сергеевич)"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Бизнес-регион -->
+                      <v-autocomplete
+                        v-model="formData.businessRegion"
+                        :items="businessRegionOptions"
+                        label="Бизнес-регион"
+                        placeholder="Укажите: регион или область России"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+                      
+                      <!-- Ордерная схема -->
+                      <v-checkbox
+                        v-model="formData.orderScheme"
+                        label="Ордерная схема"
+                        placeholder="Укажите: применение приходных и расходных ордеров при движении ТМЦ"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Ячейки -->
+                      <v-checkbox
+                        v-model="formData.hasCells"
+                        label="Ячейки"
+                        placeholder="Укажите: применяется ли адресное хранение (ячейки)"
+                        class="mb-4"
+                      ></v-checkbox>
+                      
+                      <!-- Адрес -->
+                      <v-text-field
+                        v-model="formData.warehouseAddress"
+                        label="Адрес склада"
+                        placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
+                        :maxlength="250"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Телефон -->
+                      <v-text-field
+                        v-model="formData.warehousePhone"
+                        label="Телефон склада"
                         placeholder="Укажите: номер в формате +7 (999) 999 99 99"
                         :rules="phoneRules"
                         :maxlength="20"
@@ -1271,52 +1854,19 @@
                         class="mb-4"
                       ></v-text-field>
                       
-                      <v-text-field
-                        v-model="formData.email"
-                        label="Электронная почта"
-                        placeholder="Укажите: электронную почту в формате '…...@.....'"
-                        :rules="emailRules"
-                        :maxlength="50"
+                      <!-- Комментарий -->
+                      <v-textarea
+                        v-model="formData.warehouseComment"
+                        label="Комментарий"
+                        placeholder="Укажите: дополнительную информацию"
+                        :maxlength="250"
+                        rows="3"
                         variant="outlined"
                         counter
                         class="mb-4"
-                      ></v-text-field>
+                      ></v-textarea>
                       
-                      <v-text-field
-                        v-model="formData.contactPerson"
-                        label="Контактное лицо"
-                        placeholder="Укажите: ФИО контакного лица и телефон"
-                        :maxlength="150"
-                        variant="outlined"
-                        counter
-                        class="mb-6"
-                      ></v-text-field>
-                    </div>
-                    
-                    <!-- Шаг 3: Дополнительные данные и файлы -->
-                    <div v-if="stepData.stepNumber === 3">
-                      <v-text-field
-                        v-model="formData.partner"
-                        label="Партнер"
-                        placeholder="Укажите: наименование из 1С ERP"
-                        :rules="[v => !!v || 'Партнер обязателен']"
-                        :maxlength="150"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      <!--
-                      <v-text-field
-                        v-model="formData.partnerCode"
-                        label="Партнер (код)"
-                        placeholder="Укажите: код из 1С ERP"
-                        :rules="[v => !!v || 'Код партнера обязателен']"
-                        :maxlength="20"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      -->
+                      <!-- Файл -->
                       <v-file-input
                         v-model="formData.hasFile"
                         label="Файлы"
@@ -1328,525 +1878,26 @@
                         prepend-icon="mdi-paperclip"
                         :rules="fileRules"
                         variant="outlined"
-                        class="mb-6"
+                        class="mb-4"
                       ></v-file-input>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Поля для объекта "Партнеры" -->
-                <div v-else-if="formData.object === '16939'">
-                  <!-- Шаг 2: Данные партнера -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <!-- Поля для КП (компания) -->
-                    <div v-if="formData.partnerType === 'КП (компания)' || formData.partnerType === '16961'">
+                      
+                      <!-- Склад (код) -->
                       <v-text-field
-                        v-model="formData.name"
-                        label="Наименование"
-                        placeholder="Укажите: наименование (пример: Ромашка ООО)"
-                        :rules="[v => !!v || 'Наименование обязательно']"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <!-- Телефон (множественное) -->
-                      <div class="mb-4">
-                        <div class="d-flex align-center mb-2">
-                          <v-text-field
-                            v-model="formData.phone"
-                            label="Телефон"
-                            v-mask="'+7 (###) ###-##-##'"
-                            placeholder="Укажите: номер в формате +7 (999) 999 99 99"
-                            :rules="phoneRules"
-                            :maxlength="25"
-                            variant="outlined"
-                            counter
-                            class="flex-grow-1 mr-2"
-                          ></v-text-field>
-                          <v-btn
-                            color="primary"
-                            variant="tonal"
-                            size="small"
-                            @click="addPhoneField"
-                          >
-                            <v-icon>mdi-plus</v-icon>
-                          </v-btn>
-                        </div>
-                        
-                        <!-- Дополнительные телефоны -->
-                        <div v-for="(phone, index) in formData.additionalPhones" :key="index" class="d-flex align-center mb-2">
-                          <v-text-field
-                            v-model="formData.additionalPhones[index]"
-                            :label="`Телефон ${index + 2}`"
-                            placeholder="Введите дополнительный телефон..."
-                            :rules="phoneRules"
-                            :maxlength="25"
-                            variant="outlined"
-                            counter
-                            class="flex-grow-1 mr-2"
-                          ></v-text-field>
-                          <v-btn
-                            color="error"
-                            variant="tonal"
-                            size="small"
-                            @click="removePhoneField(index)"
-                          >
-                            <v-icon>mdi-minus</v-icon>
-                          </v-btn>
-                        </div>
-                      </div>
-                      
-                      <!-- Email (множественное) -->
-                      <div class="mb-4">
-                        <div class="d-flex align-center mb-2">
-                          <v-text-field
-                            v-model="formData.email"
-                            label="Электронная почта"
-                            placeholder="Укажите: электронную почту в формате '…...@.....'"
-                            :rules="emailRules"
-                            :maxlength="50"
-                            variant="outlined"
-                            counter
-                            class="flex-grow-1 mr-2"
-                          ></v-text-field>
-                          <v-btn
-                            color="primary"
-                            variant="tonal"
-                            size="small"
-                            @click="addEmailField"
-                          >
-                            <v-icon>mdi-plus</v-icon>
-                          </v-btn>
-                        </div>
-                        
-                        <!-- Дополнительные email -->
-                        <div v-for="(email, index) in formData.additionalEmails" :key="index" class="d-flex align-center mb-2">
-                          <v-text-field
-                            v-model="formData.additionalEmails[index]"
-                            :label="`Email ${index + 2}`"
-                            placeholder="Введите дополнительный email..."
-                            :rules="emailRules"
-                            :maxlength="50"
-                            variant="outlined"
-                            counter
-                            class="flex-grow-1 mr-2"
-                          ></v-text-field>
-                          <v-btn
-                            color="error"
-                            variant="tonal"
-                            size="small"
-                            @click="removeEmailField(index)"
-                          >
-                            <v-icon>mdi-minus</v-icon>
-                          </v-btn>
-                        </div>
-                      </div>
-                      
-                      <!-- Бизнес-регион (множественный выбор) -->
-                      <v-autocomplete
-                        v-model="formData.businessRegion"
-                        :items="businessRegionOptions"
-                        label="Бизнес-регион"
-                        placeholder="Укажите: регион или область России"
-                        :rules="[v => !!v && v.length > 0 || 'Выберите хотя бы один бизнес-регион']"
-                        variant="outlined"
-                        multiple
-                        chips
-                        class="mb-4"
-                      ></v-autocomplete>
-                      
-                      <!-- Тип отношений (множественный выбор) -->
-                      <v-autocomplete
-                        v-model="formData.relationshipType"
-                        :items="relationshipTypeOptions"
-                        label="Тип отношений"
-                        placeholder="Укажите: тип взаимоотношений с партнером (выпадающий список)"
-                        variant="outlined"
-                        multiple
-                        chips
-                        class="mb-4"
-                      ></v-autocomplete>
-                      
-                      <v-text-field
-                        v-model="formData.legalAddress"
-                        label="Юридический адрес"
-                        placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                        :rules="[v => !!v || 'Юридический адрес обязателен']"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <v-text-field
-                        v-model="formData.actualAddress"
-                        label="Фактический адрес"
-                        placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <v-checkbox
-                        v-model="formData.copyAddress"
-                        label="Скопировать юридический адрес в фактический"
-                        class="mb-4"
-                        @update:model-value="handleCopyAddress"
-                      ></v-checkbox>
-                      
-                      <!-- Категория B2 -->
-                      <v-autocomplete
-                        v-model="formData.categoryB2"
-                        :items="categoryB2Options"
-                        label="Категория B2"
-                        placeholder="Укажите: дополнительную аналитику по категории"
-                        variant="outlined"
-                        class="mb-4"
-                      ></v-autocomplete>
-                      
-                      <!-- Категория СА -->
-                      <v-autocomplete
-                        v-model="formData.categoryCA"
-                        :items="categoryCAOptions"
-                        label="Категория СА"
-                        placeholder="Укажите: дополнительную аналитику по категории"
-                        variant="outlined"
-                        class="mb-4"
-                      ></v-autocomplete>
-                      
-                      <!-- ЦКГ -->
-                      <v-autocomplete
-                        v-model="formData.ckg"
-                        :items="ckgOptions"
-                        label="ЦКГ"
-                        placeholder="Укажите: целевую клиентскую группу (выпадающий список)"
-                        variant="outlined"
-                        class="mb-4"
-                      ></v-autocomplete>
-                      
-                      <!-- ЦКГ B2B -->
-                      <v-autocomplete
-                        v-model="formData.ckgB2B"
-                        :items="ckgB2BOptions"
-                        label="ЦКГ B2B"
-                        placeholder="Укажите: аналитика по целевым клиентским группам для B2B (выпадающий список)"
-                        variant="outlined"
-                        class="mb-4"
-                      ></v-autocomplete>
-                      <!-- 
-                      <v-text-field
-                        v-model="formData.partnerCode"
-                        label="Партнер (код)"
+                        v-model="formData.warehouseCode"
+                        label="Склад (код)"
                         placeholder="Укажите: код из 1С ERP"
-                        :rules="[v => !!v || 'Код партнера обязателен']"
-                        :maxlength="20"
-                        variant="outlined"
-                        counter
-                        class="mb-6"
-                      ></v-text-field>-->
-                    </div>
-                    
-                    <!-- Поля для ЧЛ (частное лицо) -->
-                    <div v-else-if="formData.partnerType === '16963'">
-                      <v-text-field
-                        v-model="formData.name"
-                        label="Наименование"
-                        placeholder="Укажите: наименование (пример: Ромашка ООО)"
-                        :rules="[v => !!v || 'Наименование обязательно']"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <v-text-field
-                        v-model="formData.birthDate"
-                        label="Дата рождения"
-                        type="date"
-                        variant="outlined"
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <v-radio-group
-                        v-model="formData.gender"
-                        label="Пол"
-                        placeholder="Укажите: значение из выпадающего списка"
-                        inline
-                        class="mb-4"
-                      >
-                        <v-radio label="Мужской" value="male"></v-radio>
-                        <v-radio label="Женский" value="female"></v-radio>
-                      </v-radio-group>
-                      
-                      <!-- Телефон (множественное) -->
-                      <div class="mb-4">
-                        <div class="d-flex align-center mb-2">
-                          <v-text-field
-                            v-model="formData.phone"
-                            label="Телефон"
-                            v-mask="'+7 (###) ###-##-##'"
-                            placeholder="Укажите: номер в формате +7 (999) 999 99 99"
-                            :rules="phoneRules"
-                            :maxlength="25"
-                            variant="outlined"
-                            counter
-                            class="flex-grow-1 mr-2"
-                          ></v-text-field>
-                          <v-btn
-                            color="primary"
-                            variant="tonal"
-                            size="small"
-                            @click="addPhoneField"
-                          >
-                            <v-icon>mdi-plus</v-icon>
-                          </v-btn>
-                        </div>
-                        
-                        <!-- Дополнительные телефоны -->
-                        <div v-for="(phone, index) in formData.additionalPhones" :key="index" class="d-flex align-center mb-2">
-                          <v-text-field
-                            v-model="formData.additionalPhones[index]"
-                            :label="`Телефон ${index + 2}`"
-                            placeholder="Введите дополнительный телефон..."
-                            :rules="phoneRules"
-                            :maxlength="25"
-                            variant="outlined"
-                            counter
-                            class="flex-grow-1 mr-2"
-                          ></v-text-field>
-                          <v-btn
-                            color="error"
-                            variant="tonal"
-                            size="small"
-                            @click="removePhoneField(index)"
-                          >
-                            <v-icon>mdi-minus</v-icon>
-                          </v-btn>
-                        </div>
-                      </div>
-                      
-                      <!-- Email (множественное) -->
-                      <div class="mb-4">
-                        <div class="d-flex align-center mb-2">
-                          <v-text-field
-                            v-model="formData.email"
-                            label="Электронная почта"
-                            placeholder="Укажите: электронную почту в формате '…...@.....'"
-                            :rules="emailRules"
-                            :maxlength="50"
-                            variant="outlined"
-                            counter
-                            class="flex-grow-1 mr-2"
-                          ></v-text-field>
-                          <v-btn
-                            color="primary"
-                            variant="tonal"
-                            size="small"
-                            @click="addEmailField"
-                          >
-                            <v-icon>mdi-plus</v-icon>
-                          </v-btn>
-                        </div>
-                        
-                        <!-- Дополнительные email -->
-                        <div v-for="(email, index) in formData.additionalEmails" :key="index" class="d-flex align-center mb-2">
-                          <v-text-field
-                            v-model="formData.additionalEmails[index]"
-                            :label="`Email ${index + 2}`"
-                            placeholder="Введите дополнительный email..."
-                            :rules="emailRules"
-                            :maxlength="50"
-                            variant="outlined"
-                            counter
-                            class="flex-grow-1 mr-2"
-                          ></v-text-field>
-                          <v-btn
-                            color="error"
-                            variant="tonal"
-                            size="small"
-                            @click="removeEmailField(index)"
-                          >
-                            <v-icon>mdi-minus</v-icon>
-                          </v-btn>
-                        </div>
-                      </div>
-                      
-                      <!-- Поля для ЮЛН (юр лицо нерезидент) -->
-                      <div v-if="formData.isNonResident">
-                        <v-autocomplete
-                          v-model="formData.registrationCountry"
-                          :items="registrationCountryOptions"
-                          label="Страна регистрации"
-                          placeholder="Укажите: страну регистрации контрагента"
-                          :rules="[v => !!v || 'Страна регистрации обязательна']"
-                          variant="outlined"
-                          class="mb-4"
-                        ></v-autocomplete>
-                        
-                        <v-text-field
-                          v-model="formData.registrationNumber"
-                          label="Рег. номер"
-                          placeholder="Укажите: регистрационный номер в стране регистрации"
-                          :rules="[v => !!v || 'Регистрационный номер обязателен']"
-                          :maxlength="50"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                        
-                        <v-text-field
-                          v-model="formData.taxNumber"
-                          label="Налоговый номер"
-                          placeholder="Укажите: налоговый номер страны регистрации"
-                          :rules="[v => !!v || 'Налоговый номер обязателен']"
-                          :maxlength="50"
-                          variant="outlined"
-                          counter
-                          class="mb-4"
-                        ></v-text-field>
-                      </div>
-                      
-                      <v-checkbox
-                        v-model="formData.isNonResident"
-                        label="ЮЛН (Юридическое лицо нерезедент)"
-                        class="mb-4"
-                      ></v-checkbox>
-                      <!--
-                      <v-text-field
-                        v-model="formData.partnerCode"
-                        label="Партнер (код)"
-                        placeholder="Укажите: код из 1С ERP"
-                        :rules="[v => !!v || 'Код партнера обязателен']"
+                        :rules="[v => !!v || 'Код склада обязателен']"
                         :maxlength="20"
                         variant="outlined"
                         counter
                         class="mb-4"
                       ></v-text-field>
-                      -->
-                      <v-text-field
-                        v-model="formData.partner"
-                        label="Партнер"
-                        placeholder="Укажите: наименование из 1С ERP"
-                        :rules="[v => !!v || 'Партнер обязателен']"
-                        :maxlength="150"
-                        variant="outlined"
-                        counter
-                        class="mb-6"
-                      ></v-text-field>
-                    </div>
-                  </div>
-                  
-                  <!-- Шаг 3: Файлы -->
-                  <div v-if="stepData.stepNumber === 3">
-                    <v-file-input
-                      v-model="formData.hasFile"
-                      label="Файлы"
-                      placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
-                      multiple
-                      chips
-                      counter
-                      show-size
-                      prepend-icon="mdi-paperclip"
-                      :rules="fileRules"
-                      variant="outlined"
-                      class="mb-6"
-                    ></v-file-input>
-                  </div>
-                </div>
-                
-                <!-- Поля для изменения партнера -->
-                <div v-else-if="formData.type === '16933'">
-                  <!-- Шаг 2: Поиск партнера -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <!--
-                    <v-text-field
-                      v-model="formData.partnerCode"
-                      label="Партнер (код)"
-                      placeholder="Укажите: код из 1С ERP"
-                      :rules="[v => !!v || 'Код партнера обязателен']"
-                      :maxlength="20"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    -->
-                    <v-text-field
-                      v-model="formData.partner"
-                      label="Партнер"
-                      placeholder="Укажите: наименование из 1С ERP"
-                      :rules="[v => !!v || 'Партнер обязателен']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                  </div>
-                  
-                  <!-- Шаг 3: Поля для изменения -->
-                  <div v-if="stepData.stepNumber === 3">
-                    <!-- Поля для изменения партнера КП -->
-                    <div v-if="formData.partnerType === '16961'">
-                      <v-text-field
-                        v-model="formData.name"
-                        label="Наименование"
-                        placeholder="Укажите: наименование (пример: Ромашка ООО)"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
                       
+                      <!-- Наименование склада (дополнительное) -->
                       <v-text-field
-                        v-model="formData.legalAddress"
-                        label="Юридический адрес"
-                        placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <v-text-field
-                        v-model="formData.actualAddress"
-                        label="Фактический адрес"
-                        placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-6"
-                      ></v-text-field>
-                    </div>
-                    
-                    <!-- Поля для изменения партнера ЧЛ -->
-                    <div v-else-if="formData.partnerType === '16963'">
-                      <v-text-field
-                        v-model="formData.name"
-                        label="Наименование"
-                        placeholder="Укажите: наименование (пример: Ромашка ООО)"
-                        :maxlength="250"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <v-text-field
-                        v-model="formData.phone"
-                        label="Телефон"
-                        v-mask="'+7 (###) ###-##-##'"
-                        placeholder="Укажите: номер в формате +7 (999) 999 99 99"
-                        :maxlength="25"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
-                      <v-text-field
-                        v-model="formData.email"
-                        label="Электронная почта"
-                        placeholder="Укажите: электронную почту в формате '…...@.....'"
+                        v-model="formData.warehouseNameSecondary"
+                        label="Наименование склада (дополнительное)"
+                        placeholder="Введите дополнительное наименование..."
                         :maxlength="50"
                         variant="outlined"
                         counter
@@ -1854,962 +1905,2318 @@
                       ></v-text-field>
                     </div>
                   </div>
-                </div>
-                
-                <!-- Поля для ошибки партнера -->
-                <div v-else-if="formData.type === '16935'">
-                  <!-- Шаг 2: Описание ошибки -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <v-textarea
-                      v-model="formData.errorDescription"
-                      label="Описание ошибки"
-                      placeholder="Опишите ошибку или требуемые доработки..."
-                      :rules="[v => !!v || 'Описание ошибки обязательно']"
-                      rows="4"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Заменяем чекбокс на поле добавления файлов -->
-                    <v-file-input
-                      v-model="formData.hasFile"
-                      label="Файлы"
-                      placeholder="Загрузите файлы или скриншоты для описания ошибки..."
-                      multiple
-                      chips
-                      counter
-                      show-size
-                      prepend-icon="mdi-paperclip"
-                      :rules="fileRules"
-                      variant="outlined"
-                      class="mb-6"
-                    ></v-file-input>
-                  </div>
-                </div>
-                
-                <!-- Поля для объекта "Договоры" -->
-                <div v-else-if="formData.object === '16943'">
-                  <!-- Шаг 2: Данные договора -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <!-- Цель договора -->
-                    <v-autocomplete
-                      v-model="formData.contractPurpose"
-                      :items="contractPurposeOptions"
-                      label="Цель договора"
-                      placeholder="Укажите: формат взаимодействия с контрагентом (выпадающий список)"
-                      :rules="[v => !!v || 'Цель договора обязательна']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Номер договора -->
-                    <v-text-field
-                      v-model="formData.contractNumber"
-                      label="Номер договора"
-                      placeholder="Укажите: номер договора согласно подписанной версии"
-                      :rules="[v => !!v || 'Номер договора обязателен']"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Дата -->
-                    <v-text-field
-                      v-model="formData.contractDate"
-                      label="Дата договора"
-                      type="date"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Период действия с -->
-                    <v-text-field
-                      v-model="formData.contractPeriodFrom"
-                      label="Период действия с"
-                      type="date"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Период действия по -->
-                    <v-text-field
-                      v-model="formData.contractPeriodTo"
-                      label="Период действия по"
-                      type="date"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Наименование -->
-                    <v-text-field
-                      v-model="formData.contractName"
-                      label="Наименование договора"
-                      placeholder="Укажите: наименование договора с номером и датой (пример: Договор № 23/00 от 29.12.2020г.)"
-                      :rules="[v => !!v || 'Наименование договора обязательно']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Подразделение -->
-                    <v-text-field
-                      v-model="formData.department"
-                      label="Подразделение"
-                      placeholder="Укажите: подразделение инициатора"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Организация -->
-                    <v-autocomplete
-                      v-model="formData.organization"
-                      :items="organizationOptions"
-                      label="Организация"
-                      placeholder="Укажите: наименование из 1С ERP (ОРТОНИКА ООО)"
-                      :rules="[v => !!v || 'Организация обязательна']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Организация ИНН -->
-                    <v-text-field
-                      v-model="formData.organizationInn"
-                      label="Организация ИНН"
-                      placeholder="Введите ИНН организации..."
-                      :rules="getInnRules()"
-                      :maxlength="12"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Счет организации -->
-                    <v-text-field
-                      v-model="formData.organizationAccount"
-                      label="Счет организации"
-                      placeholder="Укажите: расчетный счет организации"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Контрагент -->
-                    <v-text-field
-                      v-model="formData.counterparty"
-                      label="Контрагент"
-                      placeholder="Укажите: наименование контрагента (пример: Ромашка ООО)"
-                      :rules="[v => !!v || 'Контрагент обязателен']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Контрагент ИНН -->
-                    <v-text-field
-                      v-model="formData.counterpartyInn"
-                      label="Контрагент ИНН"
-                      placeholder="Введите ИНН контрагента..."
-                      :rules="getInnRules()"
-                      :maxlength="12"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Контрагент (код) 
-                    <v-text-field
-                      v-model="formData.counterpartyCode"
-                      label="Контрагент (код)"
-                      placeholder="Введите код контрагента..."
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    -->
-
-                    <!-- Партнер (код) 
-                    <v-text-field
-                      v-model="formData.partnerCode"
-                      label="Партнер (код)"
-                      placeholder="Укажите: код из 1С ERP"
-                      :rules="[v => !!v || 'Код партнера обязателен']"
-                      :maxlength="20"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    -->
-                    <!-- Партнер -->
-                    <v-text-field
-                      v-model="formData.partner"
-                      label="Партнер"
-                      placeholder="Укажите: наименование из 1С ERP"
-                      :rules="[v => !!v || 'Партнер обязателен']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Детализация расчётов -->
-                    <v-autocomplete
-                      v-model="formData.paymentDetails"
-                      :items="paymentDetailsOptions"
-                      label="Детализация расчётов"
-                      placeholder="Укажите: применяемый вид расчетов по договору (выпадающий список)"
-                      :rules="[v => !!v || 'Детализация расчётов обязательна']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Валюта -->
-                    <v-autocomplete
-                      v-model="formData.currency"
-                      :items="currencyOptions"
-                      label="Валюта"
-                      placeholder="Укажите: валюту расчетов"
-                      :rules="[v => !!v || 'Валюта обязательна']"
-                      item-title="FULL_NAME"
-                      item-value="CURRENCY"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Оплата в иностранной валюте -->
-                    <v-checkbox
-                      v-model="formData.foreignCurrencyPayment"
-                      label="Оплата в иностранной валюте"
-                      placeholder="Укажите: расчеты осуществляются в иностранной валюте"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Сумма договора фиксирована -->
-                    <v-checkbox
-                      v-model="formData.fixedContractAmount"
-                      label="Сумма договора фиксирована"
-                      placeholder="Укажите: фиксируется ли договор определенной суммой"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Разрешена работа с дочерними партнерами -->
-                    <v-checkbox
-                      v-model="formData.allowSubsidiaryPartners"
-                      label="Разрешена работа с дочерними партнерами"
-                      placeholder="Укажите: возможность проведения взаиморасчетов между партнерами"
-                      class="mb-4"
-                    ></v-checkbox>
-
-                    <!-- Маркируемая продукция -->
-                    <v-autocomplete
-                      v-model="formData.labeledProducts"
-                      :items="labeledProductsOptions"
-                      label="Маркируемая продукция"
-                      placeholder="Укажите: продукция выбывает из оборота или нет"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Запрещать отгрузку -->
-                    <v-checkbox
-                      v-model="formData.prohibitShipment"
-                      label="Запрещать отгрузку"
-                      placeholder="Укажите: запрещается ли отгрузка при достижении лимита задолженности"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Не отгружать при сумме задолженности -->
-                    <v-checkbox
-                      v-model="formData.dontShipOnDebt"
-                      label="Не отгружать при сумме задолженности"
-                      placeholder="Укажите: лимит задолженности для осуществления отгрузки"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Сумма задолженности -->
-                    <v-text-field
-                      v-model="formData.debtAmount"
-                      label="Сумма задолженности"
-                      placeholder="Укажите: сумму задолженности, после которой будут прекращены отгрузки"
-                      type="number"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Ставка НДС -->
-                    <v-autocomplete
-                      v-model="formData.vatRate"
-                      :items="vatRateOptions"
-                      label="Ставка НДС"
-                      placeholder="Укажите: значение из выпадающего списка"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Группа фин. учета -->
-                    <v-autocomplete
-                      v-model="formData.financialGroup"
-                      :items="financialGroupOptions"
-                      label="Группа фин. учета"
-                      placeholder="Укажите: применяемый бухгалтерский счет учета"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Статья ДДС -->
-                    <v-autocomplete
-                      v-model="formData.ddsArticle"
-                      :items="ddsArticleOptions"
-                      label="Статья ДДС"
-                      placeholder="Укажите: используемую статью движения денежных средств для аналитики"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Классификация задолженности -->
-                    <v-autocomplete
-                      v-model="formData.debtClassification"
-                      :items="debtClassificationOptions"
-                      label="Классификация задолженности"
-                      placeholder="Укажите: значение из выпадающего списка"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Операция декларации по НДС -->
-                    <v-autocomplete
-                      v-model="formData.vatDeclarationOperation"
-                      :items="vatDeclarationOperationOptions"
-                      label="Операция декларации по НДС"
-                      placeholder="Укажите: значение из выпадающего списка"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Направление деятельности 
-                    <v-text-field
-                      v-model="formData.activityDirection"
-                      label="Направление деятельности"
-                      placeholder="Укажите: аналитику по направлению деятельности"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    -->
-                    <!-- Файл -->
-                    <v-file-input
-                      v-model="formData.hasFile"
-                      label="Файлы"
-                      placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
-                      multiple
-                      chips
-                      counter
-                      show-size
-                      prepend-icon="mdi-paperclip"
-                      :rules="fileRules"
-                      variant="outlined"
-                      class="mb-6"
-                    ></v-file-input>
-                  </div>
-                </div>
-                
-                <!-- Поля для объекта "Склады" -->
-                <div v-else-if="formData.object === '16945'">
-                  <!-- Шаг 2: Данные склада -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <!-- Тип склада -->
-                    <v-autocomplete
-                      v-model="formData.warehouseType"
-                      :items="warehouseTypeOptions"
-                      label="Тип склада"
-                      placeholder="Укажите: в зависимости от формата продаж (выпадающий список)"
-                      :rules="[v => !!v || 'Тип склада обязателен']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Группа складов -->
-                    <v-text-field
-                      v-model="formData.warehouseGroup"
-                      label="Группа складов"
-                      placeholder="Укажите: к какой группе относится (основной, инвентаризация, соисполнители, участки производства и др.)"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Наименование -->
-                    <v-text-field
-                      v-model="formData.warehouseName"
-                      label="Наименование склада"
-                      placeholder="Укажите: наименование склада"
-                      :rules="[v => !!v || 'Наименование склада обязательно']"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Источник информации о ценах -->
-                    <v-autocomplete
-                      v-model="formData.priceSource"
-                      :items="priceSourceOptions"
-                      label="Источник информации о ценах"
-                      placeholder="Укажите: значение из выпадающего списка"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Учетный вид цены -->
-                    <v-text-field
-                      v-model="formData.accountingPriceType"
-                      label="Учетный вид цены"
-                      placeholder="Укажите: применяемый прайс-лист (если применимо)"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Контролировать свободные остатки -->
-                    <v-checkbox
-                      v-model="formData.controlFreeBalance"
-                      label="Контролировать свободные остатки"
-                      placeholder="Укажите: проводится ли проверка наличия достаточного количества ТМЦ перед проведением документов"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Контролировать оперативные остатки -->
-                    <v-checkbox
-                      v-model="formData.controlOperationalBalance"
-                      label="Контролировать оперативные остатки"
-                      placeholder="Укажите: проводится ли проверка наличия ТМЦ при проведении документов"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Подразделение -->
-                    <v-text-field
-                      v-model="formData.department"
-                      label="Подразделение"
-                      placeholder="Укажите: подразделение инициатора"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Ответственный (МОЛ) -->
-                    <v-text-field
-                      v-model="formData.responsiblePerson"
-                      label="Ответственный (МОЛ)"
-                      placeholder="Укажите: материально-ответственное лицо (пример: Иванов Андрей Сергеевич)"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Бизнес-регион -->
-                    <v-autocomplete
-                      v-model="formData.businessRegion"
-                      :items="businessRegionOptions"
-                      label="Бизнес-регион"
-                      placeholder="Укажите: регион или область России"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Ордерная схема -->
-                    <v-checkbox
-                      v-model="formData.orderScheme"
-                      label="Ордерная схема"
-                      placeholder="Укажите: применение приходных и расходных ордеров при движении ТМЦ"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Ячейки -->
-                    <v-checkbox
-                      v-model="formData.hasCells"
-                      label="Ячейки"
-                      placeholder="Укажите: применяется ли адресное хранение (ячейки)"
-                      class="mb-4"
-                    ></v-checkbox>
-                    
-                    <!-- Адрес -->
-                    <v-text-field
-                      v-model="formData.warehouseAddress"
-                      label="Адрес склада"
-                      placeholder="Укажите: адрес в порядке индекс, область, город, улица, дом, квартира/ помещение"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Телефон -->
-                    <v-text-field
-                      v-model="formData.warehousePhone"
-                      label="Телефон склада"
-                      placeholder="Укажите: номер в формате +7 (999) 999 99 99"
-                      :rules="phoneRules"
-                      :maxlength="20"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Комментарий -->
-                    <v-textarea
-                      v-model="formData.warehouseComment"
-                      label="Комментарий"
-                      placeholder="Укажите: дополнительную информацию"
-                      :maxlength="250"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Файл -->
-                    <v-file-input
-                      v-model="formData.hasFile"
-                      label="Файлы"
-                      placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
-                      multiple
-                      chips
-                      counter
-                      show-size
-                      prepend-icon="mdi-paperclip"
-                      :rules="fileRules"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-file-input>
-                    
-                    <!-- Склад (код) -->
-                    <v-text-field
-                      v-model="formData.warehouseCode"
-                      label="Склад (код)"
-                      placeholder="Укажите: код из 1С ERP"
-                      :rules="[v => !!v || 'Код склада обязателен']"
-                      :maxlength="20"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Наименование склада (дополнительное) -->
-                    <v-text-field
-                      v-model="formData.warehouseNameSecondary"
-                      label="Наименование склада (дополнительное)"
-                      placeholder="Введите дополнительное наименование..."
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-6"
-                    ></v-text-field>
-                  </div>
-                </div>
-                
-                <!-- Поля для объекта "Упаковки" -->
-                <div v-else-if="formData.object === '16947'">
-                  <!-- Шаг 2: Данные упаковки -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <!-- Номенклатура -->
-                    <v-text-field
-                      v-model="formData.nomenclature"
-                      label="Номенклатура"
-                      placeholder="Укажите: наименование из 1С ERP"
-                      :rules="[v => !!v || 'Номенклатура обязательна']"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Номенклатура код -->
-                    <v-select
-                      v-model="formData.nomenclatureCodes"
-                      :items="nomenclatureCodeOptions"
-                      label="Номенклатура код"
-                      placeholder="Укажите: код из 1С ERP"
-                      variant="outlined"
-                      multiple
-                      chips
-                      class="mb-4"
-                    ></v-select>
-                    
-                    <!-- Дополнительно -->
-                    <v-text-field
-                      v-model="formData.additionalInfo"
-                      label="Дополнительно"
-                      placeholder="Укажите: дополнительную информацию по заявке"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Единица измерения -->
-                    <v-text-field
-                      v-model="formData.measurementUnit"
-                      label="Единица измерения"
-                      placeholder="Укажите: единицу измерения товара/ продукции"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- 1 шт упаковки состоит из -->
-                    <v-text-field
-                      v-model="formData.packageComposition"
-                      label="1 шт упаковки состоит из"
-                      placeholder="Укажите: состав 1 упаковки"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Вес -->
-                    <v-text-field
-                      v-model="formData.weight"
-                      label="Вес"
-                      placeholder="Укажите: вес в кг"
-                      type="number"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Высота, м -->
-                    <v-text-field
-                      v-model="formData.height"
-                      label="Высота, м"
-                      placeholder="Укажите: значение в метрах"
-                      type="number"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Ширина, м -->
-                    <v-text-field
-                      v-model="formData.width"
-                      label="Ширина, м"
-                      placeholder="Укажите: значение в метрах"
-                      type="number"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Глубина, м -->
-                    <v-text-field
-                      v-model="formData.depth"
-                      label="Глубина, м"
-                      placeholder="Укажите: значение в метрах"
-                      type="number"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Объем -->
-                    <v-text-field
-                      v-model="formData.volume"
-                      label="Объем"
-                      placeholder="Рассчитывается по формуле"
-                      type="number"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Типоразмер 
-                    <v-text-field
-                      v-model="formData.typeSize"
-                      label="Типоразмер"
-                      placeholder="Укажите: высота/ глубина/ ширина в м. (пример: 0,7/ 0,8/ 0,9)"
-                      type="number"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    -->
-                    <!-- Упаковка -->
-                    <v-text-field
-                      v-model="formData.packageName"
-                      label="Упаковка"
-                      placeholder="Укажите: наименование упаковки"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-6"
-                    ></v-text-field>
-                  </div>
-                </div>
-                
-                <!-- Поля для объекта "Скидки (наценки)" -->
-                <div v-else-if="formData.object === '16959'">
-                  <!-- Шаг 2: Данные скидки -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <h3 class="text-h6 mb-4">Данные скидки</h3>
-                    
-                    <!-- Наименование -->
-                    <v-text-field
-                      v-model="formData.discountName"
-                      label="Наименование"
-                      placeholder="Укажите: наименование скидки"
-                      :rules="[v => !!v || 'Наименование обязательно']"
-                      :maxlength="150"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Тип скидки -->
-                    <v-autocomplete
-                      v-model="formData.discountType"
-                      :items="discountTypeOptions"
-                      label="Тип скидки"
-                      placeholder="Укажите: значение из выпадающего списка"
-                      :rules="[v => !!v || 'Тип скидки обязателен']"
-                      item-title="title"
-                      item-value="id"
-                      variant="outlined"
-                      required
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Механика и условия предоставления -->
-                    <v-textarea
-                      v-model="formData.discountMechanics"
-                      label="Механика и условия предоставления"
-                      placeholder="Укажите: механизм применения скидки (пример: при покупке от 2-х шт. Pulse 450 (UT-00021451) скидка 5%)"
-                      :rules="[v => !!v || 'Механика скидки обязательна']"
-                      :maxlength="500"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Канал продаж -->
-                    <v-autocomplete
-                      v-model="formData.salesChannel"
-                      :items="salesChannelOptions"
-                      label="Канал продаж"
-                      placeholder="Укажите: значение из выпадающего списка"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-autocomplete>
-                    
-                    <!-- Отборы (соглашения) -->
-                    <v-textarea
-                      v-model="formData.discountSelections"
-                      label="Отборы (соглашения)"
-                      placeholder="Укажите: применяемые отборы для скидки по соглашениям"
-                      :maxlength="500"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Период действия с -->
-                    <v-text-field
-                      v-model="formData.discountPeriodFrom"
-                      label="Период действия с"
-                      type="date"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Период действия по -->
-                    <v-text-field
-                      v-model="formData.discountPeriodTo"
-                      label="Период действия по"
-                      type="date"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Дополнительно -->
-                    <v-textarea
-                      v-model="formData.discountAdditional"
-                      label="Дополнительно"
-                      placeholder="Укажите: дополнительную информацию по заявке"
-                      :maxlength="500"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Основание -->
-                    <v-text-field
-                      v-model="formData.discountBasis"
-                      label="Основание"
-                      placeholder="Укажите: основание для отражения в системе (Укажите № приказа)"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    <v-row class="file">
-                      <!-- Основание (файл) -->
-                      <v-file-input
-                        v-model="formData.discountBasisFile"
-                        label="Файлы"
-                        placeholder="Прикрепите: файл-основание"
-                        multiple
-                        chips
+                  
+                  <!-- Поля для объекта "Упаковки" -->
+                  <div v-else-if="formData.object === '16947'">
+                    <!-- Шаг 2: Данные упаковки -->
+                    <div v-if="stepData.stepNumber === 2">
+                      <!-- Номенклатура -->
+                      <v-text-field
+                        v-model="formData.nomenclature"
+                        label="Номенклатура"
+                        placeholder="Укажите: наименование из 1С ERP"
+                        :rules="[v => !!v || 'Номенклатура обязательна']"
+                        :maxlength="50"
+                        variant="outlined"
                         counter
-                        show-size
-                        prepend-icon="mdi-paperclip"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Номенклатура код -->
+                      <v-text-field
+                        v-model="formData.nomenclatureCodes"
+                        label="Номенклатура (код)"
+                        placeholder="Укажите: код из 1С ERP"
                         variant="outlined"
                         class="mb-4"
-                      ></v-file-input>
-                      <div class="mb-4">
-                        <v-btn
-                          color="secondary"
-                          variant="outlined"
-                          size="small"
-                          href="assets/discount_template.xlsx"
-                          target="_blank"
-                          prepend-icon="mdi-download"
-                        >
-                          Скачать образец файла
-                        </v-btn>
-                      </div>
-                    </v-row>
-                  </div>
-                </div>
-
-                <!-- Поля для объекта "Цены (прайс-лист)" -->
-                <div v-else-if="formData.object === '16961'">
-                  <!-- Шаг 2: Данные цены -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <h3 class="text-h6 mb-4">Данные цены</h3>
-
-                    <!-- Причина изменения -->
-                    <v-textarea
-                      v-model="formData.priceChangeReason"
-                      label="Причина изменения"
-                      placeholder="Укажите: причину распродажи, проведения акции и др."
-                      :rules="[v => !!v || 'Причина изменения обязательна']"
-                      :maxlength="500"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Период действия с -->
-                    <v-text-field
-                      v-model="formData.pricePeriodFrom"
-                      label="Период действия с"
-                      type="date"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Период действия по -->
-                    <v-text-field
-                      v-model="formData.pricePeriodTo"
-                      label="Период действия по"
-                      type="date"
-                      variant="outlined"
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Подразделение -->
-                    <v-text-field
-                      v-model="formData.priceDepartment"
-                      label="Подразделение"
-                      placeholder="Укажите: подразделение инициатора"
-                      :maxlength="50"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    
-                    <!-- Дополнительно -->
-                    <v-textarea
-                      v-model="formData.priceAdditional"
-                      label="Дополнительно"
-                      placeholder="Укажите: дополнительную информацию по заявке"
-                      :maxlength="500"
-                      rows="3"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-textarea>
-                    
-                    <!-- Основание -->
-                    <v-text-field
-                      v-model="formData.priceBasis"
-                      label="Основание"
-                      placeholder="Укажите: основание для отражения в системе (Укажите № приказа)"
-                      :maxlength="250"
-                      variant="outlined"
-                      counter
-                      class="mb-4"
-                    ></v-text-field>
-                    <v-row class="file">
-                      <!-- Основание (файл) -->
-                      <v-file-input
-                        v-model="formData.priceBasisFile"
-                        label="Файлы"
-                        placeholder="Прикрепите: файлы в формате excel по шаблону"
-                        multiple
-                        chips
+                      ></v-text-field>
+                      
+                      <!-- Дополнительно -->
+                      <v-text-field
+                        v-model="formData.additionalInfo"
+                        label="Дополнительно"
+                        placeholder="Укажите: дополнительную информацию по заявке"
+                        :maxlength="50"
+                        variant="outlined"
                         counter
-                        show-size
-                        prepend-icon="mdi-paperclip"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Единица измерения -->
+                      <v-text-field
+                        v-model="formData.measurementUnit"
+                        label="Единица измерения"
+                        placeholder="Укажите: единицу измерения товара/ продукции"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- 1 шт упаковки состоит из -->
+                      <v-text-field
+                        v-model="formData.packageComposition"
+                        label="1 шт упаковки состоит из"
+                        placeholder="Укажите: состав 1 упаковки"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Вес -->
+                      <v-text-field
+                        v-model="formData.weight"
+                        label="Вес"
+                        placeholder="Укажите: вес в кг"
+                        type="number"
                         variant="outlined"
                         class="mb-4"
-                      ></v-file-input>
-                      <div class="mb-4">
-                        <v-btn
-                          color="secondary"
-                          variant="outlined"
-                          size="small"
-                          href="assets/price_template.xlsx"
-                          target="_blank"
-                          prepend-icon="mdi-download"
-                        >
-                          Скачать образец файла
-                        </v-btn>
-                      </div>
-                    </v-row>
+                      ></v-text-field>
+                      
+                      <!-- Высота, м -->
+                      <v-text-field
+                        v-model="formData.height"
+                        label="Высота, м"
+                        placeholder="Укажите: значение в метрах"
+                        type="number"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Ширина, м -->
+                      <v-text-field
+                        v-model="formData.width"
+                        label="Ширина, м"
+                        placeholder="Укажите: значение в метрах"
+                        type="number"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Глубина, м -->
+                      <v-text-field
+                        v-model="formData.depth"
+                        label="Глубина, м"
+                        placeholder="Укажите: значение в метрах"
+                        type="number"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Объем -->
+                      <v-text-field
+                        v-model="formData.volume"
+                        label="Объем"
+                        placeholder="Рассчитывается по формуле"
+                        type="number"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Упаковка -->
+                      <v-text-field
+                        v-model="formData.packageName"
+                        label="Упаковка"
+                        placeholder="Укажите: наименование упаковки"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-6"
+                      ></v-text-field>
+                    </div>
                   </div>
-                </div>
-                
-                <!-- Поля для других объектов НСИ -->
-                <div v-else>
-                  <!-- Поля для банковских счетов или других объектов -->
-                  <div v-if="stepData.stepNumber === 2">
-                    <p>Настройте поля для объекта НСИ: {{ getNsiObjectTitle(formData.object) }}</p>
+                  
+                  <!-- Поля для объекта "Скидки (наценки)" -->
+                  <div v-else-if="formData.object === '16959'">
+                    <!-- Шаг 2: Данные скидки -->
+                    <div v-if="stepData.stepNumber === 2">
+                      <h3 class="text-h6 mb-4">Данные скидки</h3>
+                      <!-- Основание -->
+                      <v-text-field
+                        v-model="formData.discountBasis"
+                        label="Основание"
+                        placeholder="Укажите: основание для отражения в системе (Укажите № приказа)"
+                        :maxlength="250"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      <v-row class="file">
+                        <!-- Основание (файл) -->
+                        <v-file-input
+                          v-model="formData.discountBasisFile"
+                          label="Файлы"
+                          placeholder="Прикрепите: файл-основание"
+                          multiple
+                          chips
+                          counter
+                          show-size
+                          prepend-icon="mdi-paperclip"
+                          variant="outlined"
+                          class="mb-4"
+                        ></v-file-input>
+                        <div class="mb-4">
+                          <v-btn
+                            color="secondary"
+                            variant="outlined"
+                            size="small"
+                            href="assets/discount_template.xlsx"
+                            target="_blank"
+                            prepend-icon="mdi-download"
+                          >
+                            Скачать образец файла
+                          </v-btn>
+                        </div>
+                      </v-row>
+                      <!-- Наименование -->
+                      <v-text-field
+                        v-model="formData.discountName"
+                        label="Наименование"
+                        placeholder="Укажите: наименование скидки"
+                        :rules="[v => !!v || 'Наименование обязательно']"
+                        :maxlength="150"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Тип скидки -->
+                      <v-autocomplete
+                        v-model="formData.discountType"
+                        :items="discountTypeOptions"
+                        label="Тип скидки"
+                        placeholder="Укажите: значение из выпадающего списка"
+                        :rules="[v => !!v || 'Тип скидки обязателен']"
+                        item-title="title"
+                        item-value="id"
+                        variant="outlined"
+                        required
+                        class="mb-4"
+                      ></v-autocomplete>
+
+                      <!-- Канал продаж -->
+                      <v-autocomplete
+                        v-model="formData.salesChannel"
+                        :items="salesChannelOptions"
+                        label="Канал продаж"
+                        placeholder="Укажите: значение из выпадающего списка"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-autocomplete>
+
+                      <!-- Период действия с -->
+                      <v-text-field
+                        v-model="formData.discountPeriodFrom"
+                        label="Период действия с"
+                        type="date"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Период действия по -->
+                      <v-text-field
+                        v-model="formData.discountPeriodTo"
+                        label="Период действия по"
+                        type="date"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      <!-- Отборы (соглашения) -->
+                      <v-textarea
+                        v-model="formData.discountSelections"
+                        label="Отборы (соглашения)"
+                        placeholder="Укажите: применяемые отборы для скидки по соглашениям"
+                        :maxlength="500"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                      <!-- Механика и условия предоставления -->
+                      <v-textarea
+                        v-model="formData.discountMechanics"
+                        label="Механика и условия предоставления"
+                        placeholder="Укажите: механизм применения скидки (пример: при покупке от 2-х шт. Pulse 450 (UT-00021451) скидка 5%)"
+                        :rules="[v => !!v || 'Механика скидки обязательна']"
+                        :maxlength="500"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                      <!-- Дополнительно -->
+                      <v-textarea
+                        v-model="formData.discountAdditional"
+                        label="Дополнительно"
+                        placeholder="Укажите: дополнительную информацию по заявке"
+                        :maxlength="500"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                    </div>
+                  </div>
+
+                  <!-- Поля для объекта "Цены (прайс-лист)" -->
+                  <div v-else-if="formData.object === '16961'">
+                    <!-- Шаг 2: Данные цены -->
+                    <div v-if="stepData.stepNumber === 2">
+                      <h3 class="text-h6 mb-4">Данные цены</h3>
+                      <!-- Основание -->
+                      <v-text-field
+                        v-model="formData.priceBasis"
+                        label="Основание"
+                        placeholder="Укажите: основание для отражения в системе (Укажите № приказа)"
+                        :maxlength="250"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      <v-row class="file">
+                        <!-- Основание (файл) -->
+                        <v-file-input
+                          v-model="formData.priceBasisFile"
+                          label="Файлы"
+                          placeholder="Прикрепите: файлы в формате excel по шаблону"
+                          multiple
+                          chips
+                          counter
+                          show-size
+                          prepend-icon="mdi-paperclip"
+                          variant="outlined"
+                          class="mb-4"
+                        ></v-file-input>
+                        <div class="mb-4">
+                          <v-btn
+                            color="secondary"
+                            variant="outlined"
+                            size="small"
+                            href="assets/price_template.xlsx"
+                            target="_blank"
+                            prepend-icon="mdi-download"
+                          >
+                            Скачать образец файла
+                          </v-btn>
+                        </div>
+                      </v-row>
+                      <!-- Причина изменения -->
+                      <v-textarea
+                        v-model="formData.priceChangeReason"
+                        label="Причина изменения"
+                        placeholder="Укажите: причину распродажи, проведения акции и др."
+                        :rules="[v => !!v || 'Причина изменения обязательна']"
+                        :maxlength="500"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                      
+                      <!-- Период действия с -->
+                      <v-text-field
+                        v-model="formData.pricePeriodFrom"
+                        label="Период действия с"
+                        type="date"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Период действия по -->
+                      <v-text-field
+                        v-model="formData.pricePeriodTo"
+                        label="Период действия по"
+                        type="date"
+                        variant="outlined"
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Подразделение -->
+                      <v-text-field
+                        v-model="formData.priceDepartment"
+                        label="Подразделение"
+                        placeholder="Укажите: подразделение инициатора"
+                        :maxlength="50"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-text-field>
+                      
+                      <!-- Дополнительно -->
+                      <v-textarea
+                        v-model="formData.priceAdditional"
+                        label="Дополнительно"
+                        placeholder="Укажите: дополнительную информацию по заявке"
+                        :maxlength="500"
+                        rows="3"
+                        variant="outlined"
+                        counter
+                        class="mb-4"
+                      ></v-textarea>
+                    </div>
+                  </div>
+<!-- Поля для объекта "Контрагент/ Договор" (17961) -->
+<div v-else-if="formData.object === '17961'">
+  <!-- Шаг 2: Данные контрагента -->
+  <div v-if="stepData.stepNumber === 2">
+    <h3 class="text-h6 mb-4">Данные контрагента</h3>
+    
+    <!-- Вид контрагента -->
+    <v-autocomplete
+      v-model="formData.complexCounterpartyType"
+      :items="counterpartyTypeOptions"
+      label="Вид контрагента"
+      placeholder="Выберите вид контрагента"
+      :rules="[v => !!v || 'Вид контрагента обязателен']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+      @update:model-value="resetCounterpartySpecificFields"
+    ></v-autocomplete>
+    
+    <!-- ИНН -->
+    <v-text-field
+      v-model="formData.complexInn"
+      label="ИНН"
+      placeholder="Введите ИНН"
+      :rules="getInnRules()"
+      maxlength="12"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Наименование -->
+    <v-text-field
+      v-model="formData.complexName"
+      label="Наименование"
+      placeholder="Укажите полное наименование контрагента"
+      :rules="[v => !!v || 'Наименование обязательно']"
+      :maxlength="100"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Сокр. наименование -->
+    <v-text-field
+      v-model="formData.complexShortName"
+      label="Сокр. наименование"
+      placeholder="Укажите сокращенное наименование"
+      :rules="[v => !!v || 'Сокращенное наименование обязательно']"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Конкретные поля для ЮЛ и ОПЮЛ -->
+    <div v-if="['17941', '17943'].includes(formData.complexCounterpartyType)">
+      <!-- КПП -->
+      <v-text-field
+        v-model="formData.complexKpp"
+        label="КПП"
+        placeholder="Введите КПП"
+        :rules="kppRules"
+        :maxlength="9"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- ОГРН -->
+      <v-text-field
+        v-model="formData.complexOgrn"
+        label="ОГРН"
+        placeholder="Введите ОГРН"
+        :rules="ogrnRules"
+        :maxlength="15"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- ОКПО -->
+      <v-text-field
+        v-model="formData.complexOkpo"
+        label="ОКПО"
+        placeholder="Введите ОКПО"
+        :rules="okpoRules"
+        :maxlength="10"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поля для ОПЮЛ -->
+    <div v-if="formData.complexCounterpartyType === '17943'">
+      <!-- ИНН Головного контрагента -->
+      <v-text-field
+        v-model="formData.complexHeadInn"
+        label="ИНН Головного контрагента"
+        placeholder="Введите ИНН головного контрагента"
+        :rules="[v => !!v || 'ИНН головного контрагента обязателен']"
+        maxlength="12"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Головной контрагент -->
+      <v-text-field
+        v-model="formData.complexHeadCounterparty"
+        label="Головной контрагент"
+        placeholder="Укажите головного контрагента"
+        :rules="[v => !!v || 'Головной контрагент обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поле для ФЛ -->
+    <div v-if="formData.complexCounterpartyType === '17945'">
+      <v-text-field
+        v-model="formData.complexIdentityDocument"
+        label="Документ удост. личность"
+        placeholder="Укажите реквизиты документа, удостоверяющего личность"
+        :rules="[v => !!v || 'Документ обязателен']"
+        :maxlength="150"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поле для ИП -->
+    <div v-if="formData.complexCounterpartyType === '17947'">
+      <v-text-field
+        v-model="formData.complexOgrnip"
+        label="ОГРНИП"
+        placeholder="Введите ОГРНИП"
+        :rules="ogrnipRules"
+        :maxlength="15"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поля для ЮЛН -->
+    <div v-if="formData.complexCounterpartyType === '17949'">
+      <!-- Страна регистрации -->
+      <v-autocomplete
+        v-model="formData.complexRegistrationCountry"
+        :items="registrationCountryOptions"
+        item-title="NAME"
+        item-value="NAME"
+        label="Страна регистрации"
+        placeholder="Выберите страну регистрации"
+        :rules="[v => !!v || 'Страна регистрации обязательна']"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- Рег. номер -->
+      <v-text-field
+        v-model="formData.complexRegistrationNumber"
+        label="Рег. номер"
+        placeholder="Укажите регистрационный номер в стране регистрации"
+        :rules="[v => !!v || 'Регистрационный номер обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Налоговый номер -->
+      <v-text-field
+        v-model="formData.complexTaxNumber"
+        label="Налоговый номер"
+        placeholder="Укажите налоговый номер страны регистрации"
+        :rules="[v => !!v || 'Налоговый номер обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Юридический адрес -->
+    <v-text-field
+      v-model="formData.complexLegalAddress"
+      label="Юридический адрес"
+      placeholder="Укажите юридический адрес"
+      :rules="[v => !!v || 'Юридический адрес обязателен']"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Фактический адрес -->
+    <v-text-field
+      v-model="formData.complexActualAddress"
+      label="Фактический адрес"
+      placeholder="Укажите фактический адрес (если отличается от юридического)"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Телефон -->
+    <v-text-field
+      v-model="formData.complexPhone"
+      label="Телефон"
+      v-mask="'+7 (###) ###-##-##'"
+      placeholder="Укажите номер в формате +7 (999) 999 99 99"
+      :rules="phoneRules"
+      :maxlength="20"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Электронная почта -->
+    <v-text-field
+      v-model="formData.complexEmail"
+      label="Электронная почта"
+      placeholder="Укажите email в формате name@domain.com"
+      :rules="emailRules"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Контактное лицо -->
+    <v-text-field
+      v-model="formData.complexContactPerson"
+      label="Контактное лицо"
+      placeholder="Укажите ФИО контактного лица"
+      :rules="[v => !!v || 'Контактное лицо обязательно']"
+      :maxlength="150"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+  </div>
+  
+  <!-- Шаг 3: Данные договора -->
+  <div v-if="stepData.stepNumber === 3">
+    <h3 class="text-h6 mb-4">Данные договора</h3>
+    
+    <!-- Цель договора -->
+    <v-autocomplete
+      v-model="formData.complexContractPurpose"
+      :items="contractPurposeOptions"
+      label="Цель договора"
+      placeholder="Укажите формат взаимодействия с контрагентом"
+      :rules="[v => !!v || 'Цель договора обязательна']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Номер договора -->
+    <v-text-field
+      v-model="formData.complexContractNumber"
+      label="Номер договора"
+      placeholder="Укажите номер договора"
+      :rules="[v => !!v || 'Номер договора обязателен']"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Дата договора -->
+    <v-text-field
+      v-model="formData.complexContractDate"
+      label="Дата договора"
+      type="date"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Период действия с -->
+    <v-text-field
+      v-model="formData.complexContractPeriodFrom"
+      label="Период действия с"
+      type="date"
+      variant="outlined"
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Период действия по -->
+    <v-text-field
+      v-model="formData.complexContractPeriodTo"
+      label="Период действия по"
+      type="date"
+      variant="outlined"
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Наименование договора -->
+    <v-text-field
+      v-model="formData.complexContractName"
+      label="Наименование договора"
+      placeholder="Укажите наименование договора"
+      :rules="[v => !!v || 'Наименование договора обязательно']"
+      :maxlength="150"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Подразделение -->
+    <v-text-field
+      v-model="formData.complexDepartment"
+      label="Подразделение"
+      placeholder="Укажите подразделение инициатора"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Организация -->
+    <v-autocomplete
+      v-model="formData.complexOrganization"
+      :items="organizationOptions"
+      label="Организация"
+      placeholder="Укажите наименование из 1С ERP"
+      :rules="[v => !!v || 'Организация обязательна']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Организация ИНН -->
+    <v-text-field
+      v-model="formData.complexOrganizationInn"
+      label="Организация ИНН"
+      placeholder="Введите ИНН организации..."
+      :rules="getInnRules()"
+      maxlength="12"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Счет организации -->
+    <v-text-field
+      v-model="formData.complexOrganizationAccount"
+      label="Счет организации"
+      placeholder="Укажите расчетный счет организации"
+      :maxlength="150"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Партнер -->
+    <v-text-field
+      v-model="formData.complexPartner"
+      label="Партнер"
+      placeholder="Укажите наименование из 1С ERP"
+      :rules="[v => !!v || 'Партнер обязателен']"
+      :maxlength="150"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Детализация расчётов -->
+    <v-autocomplete
+      v-model="formData.complexPaymentDetails"
+      :items="paymentDetailsOptions"
+      label="Детализация расчётов"
+      placeholder="Укажите применяемый вид расчетов по договору"
+      :rules="[v => !!v || 'Детализация расчётов обязательна']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Валюта -->
+    <v-autocomplete
+      v-model="formData.complexCurrency"
+      :items="currencyOptions"
+      label="Валюта"
+      placeholder="Укажите валюту расчетов"
+      :rules="[v => !!v || 'Валюта обязательна']"
+      item-title="FULL_NAME"
+      item-value="CURRENCY"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Оплата в иностранной валюте -->
+    <v-checkbox
+      v-model="formData.complexForeignCurrencyPayment"
+      label="Оплата в иностранной валюте"
+      class="mb-4"
+    ></v-checkbox>
+    
+    <!-- Сумма договора фиксирована -->
+    <v-checkbox
+      v-model="formData.complexFixedContractAmount"
+      label="Сумма договора фиксирована"
+      class="mb-4"
+    ></v-checkbox>
+    
+    <!-- Разрешена работа с дочерними партнерами -->
+    <v-checkbox
+      v-model="formData.complexAllowSubsidiaryPartners"
+      label="Разрешена работа с дочерними партнерами"
+      class="mb-4"
+    ></v-checkbox>
+
+    <!-- Маркируемая продукция -->
+    <v-autocomplete
+      v-model="formData.complexLabeledProducts"
+      :items="labeledProductsOptions"
+      label="Маркируемая продукция"
+      placeholder="Укажите продукция выбывает из оборота или нет"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Запрещать отгрузку -->
+    <v-checkbox
+      v-model="formData.complexProhibitShipment"
+      label="Запрещать отгрузку"
+      class="mb-4"
+    ></v-checkbox>
+    
+    <!-- Не отгружать при сумме задолженности -->
+    <v-checkbox
+      v-model="formData.complexDontShipOnDebt"
+      label="Не отгружать при сумме задолженности"
+      class="mb-4"
+    ></v-checkbox>
+    
+    <!-- Сумма задолженности -->
+    <v-text-field
+      v-model="formData.complexDebtAmount"
+      label="Сумма задолженности"
+      placeholder="Укажите сумму задолженности"
+      type="number"
+      variant="outlined"
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Ставка НДС -->
+    <v-autocomplete
+      v-model="formData.complexVatRate"
+      :items="vatRateOptions"
+      label="Ставка НДС"
+      placeholder="Укажите значение из выпадающего списка"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Группа фин. учета -->
+    <v-autocomplete
+      v-model="formData.complexFinancialGroup"
+      :items="financialGroupOptions"
+      label="Группа фин. учета"
+      placeholder="Укажите применяемый бухгалтерский счет учета"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Статья ДДС -->
+    <v-autocomplete
+      v-model="formData.complexDdsArticle"
+      :items="ddsArticleOptions"
+      label="Статья ДДС"
+      placeholder="Укажите используемую статью движения денежных средств"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Классификация задолженности -->
+    <v-autocomplete
+      v-model="formData.complexDebtClassification"
+      :items="debtClassificationOptions"
+      label="Классификация задолженности"
+      placeholder="Укажите значение из выпадающего списка"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Операция декларации по НДС -->
+    <v-autocomplete
+      v-model="formData.complexVatDeclarationOperation"
+      :items="vatDeclarationOperationOptions"
+      label="Операция декларации по НДС"
+      placeholder="Укажите значение из выпадающего списка"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Файлы -->
+    <v-file-input
+      v-model="formData.complexHasFile"
+      label="Файлы"
+      placeholder="Прикрепите необходимые документы"
+      multiple
+      chips
+      counter
+      show-size
+      prepend-icon="mdi-paperclip"
+      :rules="fileRules"
+      variant="outlined"
+      class="mb-6"
+    ></v-file-input>
+  </div>
+</div>
+
+<!-- Поля для объекта "Партнер/ Контрагент/ Договор" (17959) -->
+<div v-else-if="formData.object === '17959'">
+  <!-- Шаг 2: Данные партнера -->
+  <div v-if="stepData.stepNumber === 2">
+    <h3 class="text-h6 mb-4">Данные партнера</h3>
+    
+    <!-- Вид партнера -->
+    <v-autocomplete
+      v-model="formData.combinedPartnerType"
+      :items="partnerTypeOptions"
+      label="Вид партнера"
+      placeholder="Выберите вид партнера"
+      :rules="[v => !!v || 'Вид партнера обязателен']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Поля для КП (компания) -->
+    <div v-if="formData.combinedPartnerType === '16961'">
+      <v-text-field
+        v-model="formData.combinedPartnerName"
+        label="Наименование"
+        placeholder="Укажите наименование партнера"
+        :rules="[v => !!v || 'Наименование обязательно']"
+        :maxlength="250"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Телефон (множественное) -->
+      <div class="mb-4">
+        <div class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.combinedPhone"
+            label="Телефон"
+            v-mask="'+7 (###) ###-##-##'"
+            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+            :rules="phoneRules"
+            :maxlength="25"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="addCombinedPhoneField"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+        
+        <!-- Дополнительные телефоны -->
+        <div v-for="(phone, index) in formData.combinedAdditionalPhones" :key="index" class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.combinedAdditionalPhones[index]"
+            :label="`Телефон ${index + 2}`"
+            placeholder="Введите дополнительный телефон..."
+            :rules="phoneRules"
+            :maxlength="25"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="error"
+            variant="tonal"
+            size="small"
+            @click="removeCombinedPhoneField(index)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+        </div>
+      </div>
+      
+      <!-- Email (множественное) -->
+      <div class="mb-4">
+        <div class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.combinedEmail"
+            label="Электронная почта"
+            placeholder="Укажите электронную почту"
+            :rules="emailRules"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="addCombinedEmailField"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+        
+        <!-- Дополнительные email -->
+        <div v-for="(email, index) in formData.combinedAdditionalEmails" :key="index" class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.combinedAdditionalEmails[index]"
+            :label="`Email ${index + 2}`"
+            placeholder="Введите дополнительный email..."
+            :rules="emailRules"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="error"
+            variant="tonal"
+            size="small"
+            @click="removeCombinedEmailField(index)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+        </div>
+      </div>
+      
+      <!-- Бизнес-регион (множественный выбор) -->
+      <v-autocomplete
+        v-model="formData.combinedBusinessRegion"
+        :items="businessRegionOptions"
+        label="Бизнес-регион"
+        placeholder="Укажите регион или область России"
+        :rules="[v => !!v && v.length > 0 || 'Выберите хотя бы один бизнес-регион']"
+        variant="outlined"
+        multiple
+        chips
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- Тип отношений (множественный выбор) -->
+      <v-autocomplete
+        v-model="formData.combinedRelationshipType"
+        :items="relationshipTypeOptions"
+        label="Тип отношений"
+        placeholder="Укажите тип взаимоотношений с партнером"
+        variant="outlined"
+        multiple
+        chips
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <v-text-field
+        v-model="formData.combinedLegalAddress"
+        label="Юридический адрес"
+        placeholder="Укажите юридический адрес"
+        :rules="[v => !!v || 'Юридический адрес обязателен']"
+        :maxlength="250"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <v-text-field
+        v-model="formData.combinedActualAddress"
+        label="Фактический адрес"
+        placeholder="Укажите фактический адрес"
+        :maxlength="250"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <v-checkbox
+        v-model="formData.combinedCopyAddress"
+        label="Скопировать юридический адрес в фактический"
+        class="mb-4"
+        @update:model-value="handleCombinedCopyAddress"
+      ></v-checkbox>
+      
+      <!-- Категория B2 -->
+      <v-autocomplete
+        v-model="formData.combinedCategoryB2"
+        :items="categoryB2Options"
+        label="Категория B2"
+        placeholder="Укажите дополнительную аналитику по категории"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- Категория СА -->
+      <v-autocomplete
+        v-model="formData.combinedCategoryCA"
+        :items="categoryCAOptions"
+        label="Категория СА"
+        placeholder="Укажите дополнительную аналитику по категории"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- ЦКГ -->
+      <v-autocomplete
+        v-model="formData.combinedCkg"
+        :items="ckgOptions"
+        label="ЦКГ"
+        placeholder="Укажите целевую клиентскую группу"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- ЦКГ B2B -->
+      <v-autocomplete
+        v-model="formData.combinedCkgB2B"
+        :items="ckgB2BOptions"
+        label="ЦКГ B2B"
+        placeholder="Укажите аналитику по целевым клиентским группам для B2B"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+    </div>
+    
+    <!-- Поля для ЧЛ (частное лицо) -->
+    <div v-else-if="formData.combinedPartnerType === '16963'">
+      <v-text-field
+        v-model="formData.combinedPartnerName"
+        label="Наименование"
+        placeholder="Укажите наименование"
+        :rules="[v => !!v || 'Наименование обязательно']"
+        :maxlength="250"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Телефон (множественное) -->
+      <div class="mb-4">
+        <div class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.combinedPhone"
+            label="Телефон"
+            v-mask="'+7 (###) ###-##-##'"
+            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+            :rules="phoneRules"
+            :maxlength="25"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="addCombinedPhoneField"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+        
+        <!-- Дополнительные телефоны -->
+        <div v-for="(phone, index) in formData.combinedAdditionalPhones" :key="index" class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.combinedAdditionalPhones[index]"
+            :label="`Телефон ${index + 2}`"
+            placeholder="Введите дополнительный телефон..."
+            :rules="phoneRules"
+            :maxlength="25"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="error"
+            variant="tonal"
+            size="small"
+            @click="removeCombinedPhoneField(index)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+        </div>
+      </div>
+      
+      <!-- Email (множественное) -->
+      <div class="mb-4">
+        <div class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.combinedEmail"
+            label="Электронная почта"
+            placeholder="Укажите электронную почту"
+            :rules="emailRules"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="addCombinedEmailField"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+        
+        <!-- Дополнительные email -->
+        <div v-for="(email, index) in formData.combinedAdditionalEmails" :key="index" class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.combinedAdditionalEmails[index]"
+            :label="`Email ${index + 2}`"
+            placeholder="Введите дополнительный email..."
+            :rules="emailRules"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="error"
+            variant="tonal"
+            size="small"
+            @click="removeCombinedEmailField(index)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Шаг 3: Данные контрагента -->
+  <div v-if="stepData.stepNumber === 3">
+    <h3 class="text-h6 mb-4">Данные контрагента</h3>
+    
+    <!-- Вид контрагента -->
+    <v-autocomplete
+      v-model="formData.combinedCounterpartyType"
+      :items="counterpartyTypeOptions"
+      label="Вид контрагента"
+      placeholder="Выберите вид контрагента"
+      :rules="[v => !!v || 'Вид контрагента обязателен']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+      @update:model-value="resetCombinedCounterpartySpecificFields"
+    ></v-autocomplete>
+    
+    <!-- ИНН -->
+    <v-text-field
+      v-model="formData.combinedInn"
+      label="ИНН"
+      placeholder="Введите ИНН"
+      maxlength="12"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Наименование -->
+    <v-text-field
+      v-model="formData.combinedCounterpartyName"
+      label="Наименование"
+      placeholder="Укажите полное наименование контрагента"
+      :rules="[v => !!v || 'Наименование обязательно']"
+      :maxlength="100"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Сокр. наименование -->
+    <v-text-field
+      v-model="formData.combinedShortName"
+      label="Сокр. наименование"
+      placeholder="Укажите сокращенное наименование"
+      :rules="[v => !!v || 'Сокращенное наименование обязательно']"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Конкретные поля для ЮЛ и ОПЮЛ -->
+    <div v-if="['17941', '17943'].includes(formData.combinedCounterpartyType)">
+      <!-- КПП -->
+      <v-text-field
+        v-model="formData.combinedKpp"
+        label="КПП"
+        placeholder="Введите КПП"
+        :rules="kppRules"
+        :maxlength="9"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- ОГРН -->
+      <v-text-field
+        v-model="formData.combinedOgrn"
+        label="ОГРН"
+        placeholder="Введите ОГРН"
+        :rules="ogrnRules"
+        :maxlength="15"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- ОКПО -->
+      <v-text-field
+        v-model="formData.combinedOkpo"
+        label="ОКПО"
+        placeholder="Введите ОКПО"
+        :rules="okpoRules"
+        :maxlength="10"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поля для ОПЮЛ -->
+    <div v-if="formData.combinedCounterpartyType === '17943'">
+      <!-- ИНН Головного контрагента -->
+      <v-text-field
+        v-model="formData.combinedHeadInn"
+        label="ИНН Головного контрагента"
+        placeholder="Введите ИНН головного контрагента"
+        :rules="[v => !!v || 'ИНН головного контрагента обязателен']"
+        :maxlength="12"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Головной контрагент -->
+      <v-text-field
+        v-model="formData.combinedHeadCounterparty"
+        label="Головной контрагент"
+        placeholder="Укажите головного контрагента"
+        :rules="[v => !!v || 'Головной контрагент обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поле для ФЛ -->
+    <div v-if="formData.combinedCounterpartyType === '17945'">
+      <v-text-field
+        v-model="formData.combinedIdentityDocument"
+        label="Документ удост. личность"
+        placeholder="Укажите реквизиты документа, удостоверяющего личность"
+        :rules="[v => !!v || 'Документ обязателен']"
+        :maxlength="150"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поле для ИП -->
+    <div v-if="formData.combinedCounterpartyType === '17947'">
+      <v-text-field
+        v-model="formData.combinedOgrnip"
+        label="ОГРНИП"
+        placeholder="Введите ОГРНИП"
+        :rules="ogrnipRules"
+        :maxlength="15"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поля для ЮЛН -->
+    <div v-if="formData.combinedCounterpartyType === '17949'">
+      <!-- Страна регистрации -->
+      <v-autocomplete
+        v-model="formData.combinedRegistrationCountry"
+        :items="registrationCountryOptions"
+        item-title="NAME"
+        item-value="NAME"
+        label="Страна регистрации"
+        placeholder="Выберите страну регистрации"
+        :rules="[v => !!v || 'Страна регистрации обязательна']"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- Рег. номер -->
+      <v-text-field
+        v-model="formData.combinedRegistrationNumber"
+        label="Рег. номер"
+        placeholder="Укажите регистрационный номер в стране регистрации"
+        :rules="[v => !!v || 'Регистрационный номер обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Налоговый номер -->
+      <v-text-field
+        v-model="formData.combinedTaxNumber"
+        label="Налоговый номер"
+        placeholder="Укажите налоговый номер страны регистрации"
+        :rules="[v => !!v || 'Налоговый номер обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Юридический адрес -->
+    <v-text-field
+      v-model="formData.combinedCounterpartyLegalAddress"
+      label="Юридический адрес"
+      placeholder="Укажите юридический адрес"
+      :rules="[v => !!v || 'Юридический адрес обязателен']"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Фактический адрес -->
+    <v-text-field
+      v-model="formData.combinedCounterpartyActualAddress"
+      label="Фактический адрес"
+      placeholder="Укажите фактический адрес"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Телефон -->
+    <v-text-field
+      v-model="formData.combinedCounterpartyPhone"
+      label="Телефон"
+      v-mask="'+7 (###) ###-##-##'"
+      placeholder="Укажите номер в формате +7 (999) 999 99 99"
+      :rules="phoneRules"
+      :maxlength="20"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Электронная почта -->
+    <v-text-field
+      v-model="formData.combinedCounterpartyEmail"
+      label="Электронная почта"
+      placeholder="Укажите email в формате name@domain.com"
+      :rules="emailRules"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Контактное лицо -->
+    <v-text-field
+      v-model="formData.combinedContactPerson"
+      label="Контактное лицо"
+      placeholder="Укажите ФИО контактного лица"
+      :rules="[v => !!v || 'Контактное лицо обязательно']"
+      :maxlength="150"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+  </div>
+  
+  <!-- Шаг 4: Данные договора -->
+  <div v-if="stepData.stepNumber === 4">
+    <h3 class="text-h6 mb-4">Данные договора</h3>
+    
+    <!-- Цель договора -->
+    <v-autocomplete
+      v-model="formData.combinedContractPurpose"
+      :items="contractPurposeOptions"
+      label="Цель договора"
+      placeholder="Укажите формат взаимодействия с контрагентом"
+      :rules="[v => !!v || 'Цель договора обязательна']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Номер договора -->
+    <v-text-field
+      v-model="formData.combinedContractNumber"
+      label="Номер договора"
+      placeholder="Укажите номер договора"
+      :rules="[v => !!v || 'Номер договора обязателен']"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Дата договора -->
+    <v-text-field
+      v-model="formData.combinedContractDate"
+      label="Дата договора"
+      type="date"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Период действия с -->
+    <v-text-field
+      v-model="formData.combinedContractPeriodFrom"
+      label="Период действия с"
+      type="date"
+      variant="outlined"
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Период действия по -->
+    <v-text-field
+      v-model="formData.combinedContractPeriodTo"
+      label="Период действия по"
+      type="date"
+      variant="outlined"
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Наименование договора -->
+    <v-text-field
+      v-model="formData.combinedContractName"
+      label="Наименование договора"
+      placeholder="Укажите наименование договора"
+      :rules="[v => !!v || 'Наименование договора обязательно']"
+      :maxlength="150"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Подразделение -->
+    <v-text-field
+      v-model="formData.combinedDepartment"
+      label="Подразделение"
+      placeholder="Укажите подразделение инициатора"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Организация -->
+    <v-autocomplete
+      v-model="formData.combinedOrganization"
+      :items="organizationOptions"
+      label="Организация"
+      placeholder="Укажите наименование из 1С ERP"
+      :rules="[v => !!v || 'Организация обязательна']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Организация ИНН -->
+    <v-text-field
+      v-model="formData.combinedOrganizationInn"
+      label="Организация ИНН"
+      placeholder="Введите ИНН организации..."
+      :rules="getInnRules()"
+      maxlength="12"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Счет организации -->
+    <v-text-field
+      v-model="formData.combinedOrganizationAccount"
+      label="Счет организации"
+      placeholder="Укажите расчетный счет организации"
+      :maxlength="150"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Детализация расчётов -->
+    <v-autocomplete
+      v-model="formData.combinedPaymentDetails"
+      :items="paymentDetailsOptions"
+      label="Детализация расчётов"
+      placeholder="Укажите применяемый вид расчетов по договору"
+      :rules="[v => !!v || 'Детализация расчётов обязательна']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Валюта -->
+    <v-autocomplete
+      v-model="formData.combinedCurrency"
+      :items="currencyOptions"
+      label="Валюта"
+      placeholder="Укажите валюту расчетов"
+      :rules="[v => !!v || 'Валюта обязательна']"
+      item-title="FULL_NAME"
+      item-value="CURRENCY"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Оплата в иностранной валюте -->
+    <v-checkbox
+      v-model="formData.combinedForeignCurrencyPayment"
+      label="Оплата в иностранной валюте"
+      class="mb-4"
+    ></v-checkbox>
+    
+    <!-- Сумма договора фиксирована -->
+    <v-checkbox
+      v-model="formData.combinedFixedContractAmount"
+      label="Сумма договора фиксирована"
+      class="mb-4"
+    ></v-checkbox>
+    
+    <!-- Разрешена работа с дочерними партнерами -->
+    <v-checkbox
+      v-model="formData.combinedAllowSubsidiaryPartners"
+      label="Разрешена работа с дочерними партнерами"
+      class="mb-4"
+    ></v-checkbox>
+
+    <!-- Маркируемая продукция -->
+    <v-autocomplete
+      v-model="formData.combinedLabeledProducts"
+      :items="labeledProductsOptions"
+      label="Маркируемая продукция"
+      placeholder="Укажите продукция выбывает из оборота или нет"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Запрещать отгрузку -->
+    <v-checkbox
+      v-model="formData.combinedProhibitShipment"
+      label="Запрещать отгрузку"
+      class="mb-4"
+    ></v-checkbox>
+    
+    <!-- Не отгружать при сумме задолженности -->
+    <v-checkbox
+      v-model="formData.combinedDontShipOnDebt"
+      label="Не отгружать при сумме задолженности"
+      class="mb-4"
+    ></v-checkbox>
+    
+    <!-- Сумма задолженности -->
+    <v-text-field
+      v-model="formData.combinedDebtAmount"
+      label="Сумма задолженности"
+      placeholder="Укажите сумму задолженности"
+      type="number"
+      variant="outlined"
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Ставка НДС -->
+    <v-autocomplete
+      v-model="formData.combinedVatRate"
+      :items="vatRateOptions"
+      label="Ставка НДС"
+      placeholder="Укажите значение из выпадающего списка"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Группа фин. учета -->
+    <v-autocomplete
+      v-model="formData.combinedFinancialGroup"
+      :items="financialGroupOptions"
+      label="Группа фин. учета"
+      placeholder="Укажите применяемый бухгалтерский счет учета"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Статья ДДС -->
+    <v-autocomplete
+      v-model="formData.combinedDdsArticle"
+      :items="ddsArticleOptions"
+      label="Статья ДДС"
+      placeholder="Укажите используемую статью движения денежных средств"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Классификация задолженности -->
+    <v-autocomplete
+      v-model="formData.combinedDebtClassification"
+      :items="debtClassificationOptions"
+      label="Классификация задолженности"
+      placeholder="Укажите значение из выпадающего списка"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Операция декларации по НДС -->
+    <v-autocomplete
+      v-model="formData.combinedVatDeclarationOperation"
+      :items="vatDeclarationOperationOptions"
+      label="Операция декларации по НДС"
+      placeholder="Укажите значение из выпадающего списка"
+      variant="outlined"
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Файлы -->
+    <v-file-input
+      v-model="formData.combinedHasFile"
+      label="Файлы"
+      placeholder="Прикрепите необходимые документы"
+      multiple
+      chips
+      counter
+      show-size
+      prepend-icon="mdi-paperclip"
+      :rules="fileRules"
+      variant="outlined"
+      class="mb-6"
+    ></v-file-input>
+  </div>
+</div>
+
+<!-- Поля для объекта "Партнёр/ Контрагент" (18003) -->
+<div v-else-if="formData.object === '18003'">
+  <!-- Шаг 2: Данные партнера -->
+  <div v-if="stepData.stepNumber === 2">
+    <h3 class="text-h6 mb-4">Данные партнера</h3>
+    
+    <!-- Вид партнера -->
+    <v-autocomplete
+      v-model="formData.partnerCounterpartyPartnerType"
+      :items="partnerTypeOptions"
+      label="Вид партнера"
+      placeholder="Выберите вид партнера"
+      :rules="[v => !!v || 'Вид партнера обязателен']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+    ></v-autocomplete>
+    
+    <!-- Поля для КП (компания) -->
+    <div v-if="formData.partnerCounterpartyPartnerType === '16961'">
+      <v-text-field
+        v-model="formData.partnerCounterpartyName"
+        label="Наименование"
+        placeholder="Укажите наименование партнера"
+        :rules="[v => !!v || 'Наименование обязательно']"
+        :maxlength="250"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Телефон (множественное) -->
+      <div class="mb-4">
+        <div class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.partnerCounterpartyPhone"
+            label="Телефон"
+            v-mask="'+7 (###) ###-##-##'"
+            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+            :rules="phoneRules"
+            :maxlength="25"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="addPartnerCounterpartyPhoneField"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+        
+        <!-- Дополнительные телефоны -->
+        <div v-for="(phone, index) in formData.partnerCounterpartyAdditionalPhones" :key="index" class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.partnerCounterpartyAdditionalPhones[index]"
+            :label="`Телефон ${index + 2}`"
+            placeholder="Введите дополнительный телефон..."
+            :rules="phoneRules"
+            :maxlength="25"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="error"
+            variant="tonal"
+            size="small"
+            @click="removePartnerCounterpartyPhoneField(index)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+        </div>
+      </div>
+      
+      <!-- Email (множественное) -->
+      <div class="mb-4">
+        <div class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.partnerCounterpartyEmail"
+            label="Электронная почта"
+            placeholder="Укажите электронную почту"
+            :rules="emailRules"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="addPartnerCounterpartyEmailField"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+        
+        <!-- Дополнительные email -->
+        <div v-for="(email, index) in formData.partnerCounterpartyAdditionalEmails" :key="index" class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.partnerCounterpartyAdditionalEmails[index]"
+            :label="`Email ${index + 2}`"
+            placeholder="Введите дополнительный email..."
+            :rules="emailRules"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="error"
+            variant="tonal"
+            size="small"
+            @click="removePartnerCounterpartyEmailField(index)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+        </div>
+      </div>
+      
+      <!-- Бизнес-регион (множественный выбор) -->
+      <v-autocomplete
+        v-model="formData.partnerCounterpartyBusinessRegion"
+        :items="businessRegionOptions"
+        label="Бизнес-регион"
+        placeholder="Укажите регион или область России"
+        :rules="[v => !!v && v.length > 0 || 'Выберите хотя бы один бизнес-регион']"
+        variant="outlined"
+        multiple
+        chips
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- Тип отношений (множественный выбор) -->
+      <v-autocomplete
+        v-model="formData.partnerCounterpartyRelationshipType"
+        :items="relationshipTypeOptions"
+        label="Тип отношений"
+        placeholder="Укажите тип взаимоотношений с партнером"
+        variant="outlined"
+        multiple
+        chips
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <v-text-field
+        v-model="formData.partnerCounterpartyLegalAddress"
+        label="Юридический адрес"
+        placeholder="Укажите юридический адрес"
+        :rules="[v => !!v || 'Юридический адрес обязателен']"
+        :maxlength="250"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <v-text-field
+        v-model="formData.partnerCounterpartyActualAddress"
+        label="Фактический адрес"
+        placeholder="Укажите фактический адрес"
+        :maxlength="250"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <v-checkbox
+        v-model="formData.partnerCounterpartyCopyAddress"
+        label="Скопировать юридический адрес в фактический"
+        class="mb-4"
+        @update:model-value="handlePartnerCounterpartyCopyAddress"
+      ></v-checkbox>
+      
+      <!-- Категория B2 -->
+      <v-autocomplete
+        v-model="formData.partnerCounterpartyCategoryB2"
+        :items="categoryB2Options"
+        label="Категория B2"
+        placeholder="Укажите дополнительную аналитику по категории"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- Категория СА -->
+      <v-autocomplete
+        v-model="formData.partnerCounterpartyCategoryCA"
+        :items="categoryCAOptions"
+        label="Категория СА"
+        placeholder="Укажите дополнительную аналитику по категории"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- ЦКГ -->
+      <v-autocomplete
+        v-model="formData.partnerCounterpartyCkg"
+        :items="ckgOptions"
+        label="ЦКГ"
+        placeholder="Укажите целевую клиентскую группу"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- ЦКГ B2B -->
+      <v-autocomplete
+        v-model="formData.partnerCounterpartyCkgB2B"
+        :items="ckgB2BOptions"
+        label="ЦКГ B2B"
+        placeholder="Укажите аналитику по целевым клиентским группам для B2B"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+    </div>
+    
+    <!-- Поля для ЧЛ (частное лицо) -->
+    <div v-else-if="formData.partnerCounterpartyPartnerType === '16963'">
+      <v-text-field
+        v-model="formData.partnerCounterpartyName"
+        label="Наименование"
+        placeholder="Укажите наименование"
+        :rules="[v => !!v || 'Наименование обязательно']"
+        :maxlength="250"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Телефон (множественное) -->
+      <div class="mb-4">
+        <div class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.partnerCounterpartyPhone"
+            label="Телефон"
+            v-mask="'+7 (###) ###-##-##'"
+            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+            :rules="phoneRules"
+            :maxlength="25"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="addPartnerCounterpartyPhoneField"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+        
+        <!-- Дополнительные телефоны -->
+        <div v-for="(phone, index) in formData.partnerCounterpartyAdditionalPhones" :key="index" class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.partnerCounterpartyAdditionalPhones[index]"
+            :label="`Телефон ${index + 2}`"
+            placeholder="Введите дополнительный телефон..."
+            :rules="phoneRules"
+            :maxlength="25"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="error"
+            variant="tonal"
+            size="small"
+            @click="removePartnerCounterpartyPhoneField(index)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+        </div>
+      </div>
+      
+      <!-- Email (множественное) -->
+      <div class="mb-4">
+        <div class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.partnerCounterpartyEmail"
+            label="Электронная почта"
+            placeholder="Укажите электронную почту"
+            :rules="emailRules"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            @click="addPartnerCounterpartyEmailField"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+        
+        <!-- Дополнительные email -->
+        <div v-for="(email, index) in formData.partnerCounterpartyAdditionalEmails" :key="index" class="d-flex align-center mb-2">
+          <v-text-field
+            v-model="formData.partnerCounterpartyAdditionalEmails[index]"
+            :label="`Email ${index + 2}`"
+            placeholder="Введите дополнительный email..."
+            :rules="emailRules"
+            :maxlength="50"
+            variant="outlined"
+            counter
+            class="flex-grow-1 mr-2"
+          ></v-text-field>
+          <v-btn
+            color="error"
+            variant="tonal"
+            size="small"
+            @click="removePartnerCounterpartyEmailField(index)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Шаг 3: Данные контрагента -->
+  <div v-if="stepData.stepNumber === 3">
+    <h3 class="text-h6 mb-4">Данные контрагента</h3>
+    
+    <!-- Вид контрагента -->
+    <v-autocomplete
+      v-model="formData.partnerCounterpartyCounterpartyType"
+      :items="counterpartyTypeOptions"
+      label="Вид контрагента"
+      placeholder="Выберите вид контрагента"
+      :rules="[v => !!v || 'Вид контрагента обязателен']"
+      item-title="title"
+      item-value="id"
+      variant="outlined"
+      required
+      class="mb-4"
+      @update:model-value="resetPartnerCounterpartySpecificFields"
+    ></v-autocomplete>
+    
+    <!-- ИНН -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyInn"
+      label="ИНН"
+      placeholder="Введите ИНН"
+      :rules="getInnRules()"
+      maxlength="12"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Наименование -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyCounterpartyName"
+      label="Наименование"
+      placeholder="Укажите полное наименование контрагента"
+      :rules="[v => !!v || 'Наименование обязательно']"
+      :maxlength="100"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Сокр. наименование -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyShortName"
+      label="Сокр. наименование"
+      placeholder="Укажите сокращенное наименование"
+      :rules="[v => !!v || 'Сокращенное наименование обязательно']"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Конкретные поля для ЮЛ и ОПЮЛ -->
+    <div v-if="['17941', '17943'].includes(formData.partnerCounterpartyCounterpartyType)">
+      <!-- КПП -->
+      <v-text-field
+        v-model="formData.partnerCounterpartyKpp"
+        label="КПП"
+        placeholder="Введите КПП"
+        :rules="kppRules"
+        :maxlength="9"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- ОГРН -->
+      <v-text-field
+        v-model="formData.partnerCounterpartyOgrn"
+        label="ОГРН"
+        placeholder="Введите ОГРН"
+        :rules="ogrnRules"
+        :maxlength="15"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- ОКПО -->
+      <v-text-field
+        v-model="formData.partnerCounterpartyOkpo"
+        label="ОКПО"
+        placeholder="Введите ОКПО"
+        :rules="okpoRules"
+        :maxlength="10"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поля для ОПЮЛ -->
+    <div v-if="formData.partnerCounterpartyCounterpartyType === '17943'">
+      <!-- ИНН Головного контрагента -->
+      <v-text-field
+        v-model="formData.partnerCounterpartyHeadInn"
+        label="ИНН Головного контрагента"
+        placeholder="Введите ИНН головного контрагента"
+        :rules="[v => !!v || 'ИНН головного контрагента обязателен']"
+        :maxlength="12"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Головной контрагент -->
+      <v-text-field
+        v-model="formData.partnerCounterpartyHeadCounterparty"
+        label="Головной контрагент"
+        placeholder="Укажите головного контрагента"
+        :rules="[v => !!v || 'Головной контрагент обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поле для ФЛ -->
+    <div v-if="formData.partnerCounterpartyCounterpartyType === '17945'">
+      <v-text-field
+        v-model="formData.partnerCounterpartyIdentityDocument"
+        label="Документ удост. личность"
+        placeholder="Укажите реквизиты документа, удостоверяющего личность"
+        :rules="[v => !!v || 'Документ обязателен']"
+        :maxlength="150"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поле для ИП -->
+    <div v-if="formData.partnerCounterpartyCounterpartyType === '17947'">
+      <v-text-field
+        v-model="formData.partnerCounterpartyOgrnip"
+        label="ОГРНИП"
+        placeholder="Введите ОГРНИП"
+        :rules="ogrnipRules"
+        :maxlength="15"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Поля для ЮЛН -->
+    <div v-if="formData.partnerCounterpartyCounterpartyType === '17949'">
+      <!-- Страна регистрации -->
+      <v-autocomplete
+        v-model="formData.partnerCounterpartyRegistrationCountry"
+        :items="registrationCountryOptions"
+        item-title="NAME"
+        item-value="NAME"
+        label="Страна регистрации"
+        placeholder="Выберите страну регистрации"
+        :rules="[v => !!v || 'Страна регистрации обязательна']"
+        variant="outlined"
+        class="mb-4"
+      ></v-autocomplete>
+      
+      <!-- Рег. номер -->
+      <v-text-field
+        v-model="formData.partnerCounterpartyRegistrationNumber"
+        label="Рег. номер"
+        placeholder="Укажите регистрационный номер в стране регистрации"
+        :rules="[v => !!v || 'Регистрационный номер обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+      
+      <!-- Налоговый номер -->
+      <v-text-field
+        v-model="formData.partnerCounterpartyTaxNumber"
+        label="Налоговый номер"
+        placeholder="Укажите налоговый номер страны регистрации"
+        :rules="[v => !!v || 'Налоговый номер обязателен']"
+        :maxlength="50"
+        variant="outlined"
+        counter
+        class="mb-4"
+      ></v-text-field>
+    </div>
+    
+    <!-- Юридический адрес -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyLegalAddress"
+      label="Юридический адрес"
+      placeholder="Укажите юридический адрес"
+      :rules="[v => !!v || 'Юридический адрес обязателен']"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Фактический адрес -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyActualAddress"
+      label="Фактический адрес"
+      placeholder="Укажите фактический адрес"
+      :maxlength="250"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Телефон -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyPhone2"
+      label="Телефон"
+      v-mask="'+7 (###) ###-##-##'"
+      placeholder="Укажите номер в формате +7 (999) 999 99 99"
+      :rules="phoneRules"
+      :maxlength="20"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Электронная почта -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyEmail2"
+      label="Электронная почта"
+      placeholder="Укажите email в формате name@domain.com"
+      :rules="emailRules"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Контактное лицо -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyContactPerson"
+      label="Контактное лицо"
+      placeholder="Укажите ФИО контактного лица"
+      :rules="[v => !!v || 'Контактное лицо обязательно']"
+      :maxlength="150"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+  </div>
+</div>
+                  <!-- Поля для других объектов НСИ -->
+                  <div v-else>
+                    <!-- Поля для банковских счетов или других объектов -->
+                    <div v-if="stepData.stepNumber === 2">
+                      <p>Настройте поля для объекта НСИ: {{ getNsiObjectTitle(formData.object) }}</p>
+                    </div>
                   </div>
                 </div>
                 
@@ -2870,6 +4277,15 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { callApi, getListElements } from '../functions/callApi'
 import { mask } from 'vue-the-mask'
+import LoadingProgress from '../components/LoadingProgress.vue'
+
+const isLoading = ref(true)
+const loadingMessage = ref('Инициализация формы...')
+
+const onLoadingComplete = () => {
+  console.log('Загрузка завершена')
+  // Можно выполнить дополнительные действия после завершения загрузки
+}
 
 const vMask = mask
 // Состояние формы
@@ -2879,6 +4295,24 @@ const isSubmitting = ref(false)
 const form = ref(null)
 const submitStatus = ref(null)
 const isLoadingRequestTypes = ref(false)
+
+const getInnPlaceholder = () => {
+  if (['17941', '17943'].includes(formData.counterpartyType)) {
+    return 'Введите ИНН (10 символов)'
+  } else if (['17945', '17947', '17949'].includes(formData.counterpartyType)) {
+    return 'Введите ИНН (12 символов)'
+  }
+  return 'Введите ИНН'
+}
+
+const getInnMaxLength = () => {
+  if (['17941', '17943'].includes(formData.counterpartyType)) {
+    return 10
+  } else if (['17945', '17947', '17949'].includes(formData.counterpartyType)) {
+    return 12
+  }
+  return 12
+}
 const agreementOperationOptions = ref([
   { id: 'sale', title: 'Продажа' },
   { id: 'purchase', title: 'Закупка' },
@@ -2905,49 +4339,23 @@ const typicalAgreementOptions = ref([
   { id: 'standard5', title: 'Типовое партнерское соглашение' }
 ])
 // Данные формы
+// Данные формы
 const formData = reactive({
+  // Основные поля шага 1
   date: new Date().toLocaleDateString('ru-RU'),
   type: null, // '16931', '16933', '16935'
-  view: '',
   object: '',
   comment: '',
-  // Поля для объекта 17961 (Контрагент + Договор)
-  complexCounterpartyType: null,
-  complexInn: '',
-  complexName: '',
-  complexLegalAddress: '',
-  complexPhone: '',
-  complexEmail: '',
   
-  // Поля для объекта 17959 (Партнер + Контрагент + Договор)
-  complexPartnerType: null,
-  complexPartnerName: '',
-  complexPartnerCode: '',
-  complexPartnerPhone: '',
-  complexPartnerEmail: '',
-  
-  complexCounterpartyType2: null,
-  complexCounterpartyInn: '',
-  complexCounterpartyName: '',
-  complexCounterpartyLegalAddress: '',
-  
-  complexContractPurpose: '',
-  complexContractNumber: '',
-  complexContractDate: '',
-  complexContractName: '',
-  complexCurrency: '',
-  complexHasFile: null,
-  // Общие поля для шага 1
-  counterpartyType: null, // Для Контрагентов
-  partnerType: null, // Для Партнеров
-  
-  // Поля для Контрагентов (шаг 2)
+  // Поля для объекта "Контрагенты" (16937)
+  counterpartyType: null,
+  partner: '',
+  partnerCode: '',
   inn: '',
   name: '',
   shortName: '',
   kpp: '',
   ogrn: '',
-  ogrnip: '',
   okpo: '',
   headInn: '',
   headCounterparty: '',
@@ -2962,9 +4370,8 @@ const formData = reactive({
   email: '',
   contactPerson: '',
   
-  // Поля для Партнеров (шаг 2)
-  birthDate: '',
-  gender: '',
+  // Поля для объекта "Партнеры" (16939)
+  partnerType: null,
   businessRegion: [],
   relationshipType: [],
   categoryB2: '',
@@ -2972,7 +4379,26 @@ const formData = reactive({
   ckg: '',
   ckgB2B: '',
   isNonResident: false,
-  // Поля для Типовых соглашений (16963)
+  additionalPhones: [],
+  additionalEmails: [],
+  
+  // Поля для объекта "Банковские счета" (16941)
+  bankAccountStatus: '',
+  counterparty: '',
+  counterpartyInn: '',
+  bankType: '',
+  bik: '',
+  bankName: '',
+  currency: '',
+  accountNumber: '',
+  correspondentAccount: '',
+  bankAddress: '',
+  swift: '',
+  bankRegistrationCity: '',
+  
+  // Поля для объекта "Типовые соглашения" (16963)
+  typicalAgreementBasis: '',
+  typicalAgreementBasisFile: null,
   typicalAgreementName: '',
   typicalAgreementTerms: '',
   typicalAgreementOperation: '',
@@ -2982,10 +4408,11 @@ const formData = reactive({
   typicalAgreementCurrency: '',
   typicalAgreementSchedule: '',
   typicalAgreementAdditional: '',
-
-  // Поля для Индивидуальных соглашений (17957)
+  
+  // Поля для объекта "Индивидуальные соглашения" (17957)
+  individualAgreementBasis: '',
+  individualAgreementBasisFile: null,
   individualAgreementName: '',
-  individualAgreementPartnerCode: '',
   individualAgreementPartner: '',
   individualAgreementOrganization: '',
   individualAgreementDate: '',
@@ -2999,7 +4426,8 @@ const formData = reactive({
   individualAgreementCurrency: '',
   individualAgreementPricing: '',
   individualAgreementAdditional: '',
-  // Поля для Договоров
+  
+  // Поля для объекта "Договоры" (16943)
   contractPurpose: '',
   contractNumber: '',
   contractDate: '',
@@ -3007,8 +4435,8 @@ const formData = reactive({
   contractPeriodTo: '',
   contractName: '',
   department: '',
-  organizationInn: '',
   organization: '',
+  organizationInn: '',
   organizationAccount: '',
   counterpartyInn: '',
   counterpartyCode: '',
@@ -3026,21 +4454,9 @@ const formData = reactive({
   financialGroup: '',
   ddsArticle: '',
   debtClassification: '',
-  vatDeclarationOperation: 0,
-  activityDirection: '',
+  vatDeclarationOperation: '',
   
-  // Поля для Банковских счетов
-  bankAccountStatus: '',
-  bankType: '',
-  bik: '',
-  bankName: '',
-  swift: '',
-  bankRegistrationCity: '',
-  bankAddress: '',
-  accountNumber: '',
-  correspondentAccount: '',
-  
-  // Поля для Складов
+  // Поля для объекта "Склады" (16945)
   warehouseType: '',
   warehouseGroup: '',
   warehouseName: '',
@@ -3057,9 +4473,9 @@ const formData = reactive({
   warehouseCode: '',
   warehouseNameSecondary: '',
   
-  // Поля для Упаковок
+  // Поля для объекта "Упаковки" (16947)
   nomenclature: '',
-  nomenclatureCodes: [],
+  nomenclatureCodes: '',
   additionalInfo: '',
   measurementUnit: '',
   packageComposition: '',
@@ -3068,37 +4484,208 @@ const formData = reactive({
   width: '',
   depth: '',
   volume: '',
+  packageName: '',
+  
+  // Поля для объекта "Скидки (наценки)" (16959)
+  discountBasis: '',
+  discountBasisFile: null,
+  discountName: '',
+  discountType: '',
+  salesChannel: '',
+  discountPeriodFrom: '',
+  discountPeriodTo: '',
+  discountSelections: '',
+  discountMechanics: '',
+  discountAdditional: '',
+  
+  // Поля для объекта "Цены (прайс-лист)" (16961)
+  priceBasis: '',
+  priceBasisFile: null,
+  priceChangeReason: '',
+  pricePeriodFrom: '',
+  pricePeriodTo: '',
+  priceDepartment: '',
+  priceAdditional: '',
+  
+  // Поля для объекта "Контрагент/Договор" (17961)
+  complexCounterpartyType: null,
+  complexInn: '',
+  complexName: '',
+  complexShortName: '',
+  complexKpp: '',
+  complexOgrn: '',
+  complexOkpo: '',
+  complexHeadInn: '',
+  complexHeadCounterparty: '',
+  complexIdentityDocument: '',
+  complexOgrnip: '',
+  complexRegistrationCountry: '',
+  complexRegistrationNumber: '',
+  complexTaxNumber: '',
+  complexLegalAddress: '',
+  complexActualAddress: '',
+  complexPhone: '',
+  complexEmail: '',
+  complexContactPerson: '',
+  complexContractPurpose: '',
+  complexContractNumber: '',
+  complexContractDate: '',
+  complexContractPeriodFrom: '',
+  complexContractPeriodTo: '',
+  complexContractName: '',
+  complexDepartment: '',
+  complexOrganization: '',
+  complexOrganizationInn: '',
+  complexOrganizationAccount: '',
+  complexPartner: '',
+  complexPaymentDetails: '',
+  complexCurrency: '',
+  complexForeignCurrencyPayment: false,
+  complexFixedContractAmount: false,
+  complexAllowSubsidiaryPartners: false,
+  complexLabeledProducts: '',
+  complexProhibitShipment: false,
+  complexDontShipOnDebt: false,
+  complexDebtAmount: '',
+  complexVatRate: '',
+  complexFinancialGroup: '',
+  complexDdsArticle: '',
+  complexDebtClassification: '',
+  complexVatDeclarationOperation: '',
+  complexHasFile: null,
+  
+  // Поля для объекта "Партнер/Контрагент/Договор" (17959)
+  combinedPartnerType: null,
+  combinedPartnerName: '',
+  combinedPhone: '',
+  combinedAdditionalPhones: [],
+  combinedEmail: '',
+  combinedAdditionalEmails: [],
+  combinedBusinessRegion: [],
+  combinedRelationshipType: [],
+  combinedLegalAddress: '',
+  combinedActualAddress: '',
+  combinedCopyAddress: false,
+  combinedCategoryB2: '',
+  combinedCategoryCA: '',
+  combinedCkg: '',
+  combinedCkgB2B: '',
+  combinedCounterpartyType: null,
+  combinedInn: '',
+  combinedCounterpartyName: '',
+  combinedShortName: '',
+  combinedKpp: '',
+  combinedOgrn: '',
+  combinedOkpo: '',
+  combinedHeadInn: '',
+  combinedHeadCounterparty: '',
+  combinedIdentityDocument: '',
+  combinedOgrnip: '',
+  combinedRegistrationCountry: '',
+  combinedRegistrationNumber: '',
+  combinedTaxNumber: '',
+  combinedCounterpartyLegalAddress: '',
+  combinedCounterpartyActualAddress: '',
+  combinedCounterpartyPhone: '',
+  combinedCounterpartyEmail: '',
+  combinedContactPerson: '',
+  combinedContractPurpose: '',
+  combinedContractNumber: '',
+  combinedContractDate: '',
+  combinedContractPeriodFrom: '',
+  combinedContractPeriodTo: '',
+  combinedContractName: '',
+  combinedDepartment: '',
+  combinedOrganization: '',
+  combinedOrganizationInn: '',
+  combinedOrganizationAccount: '',
+  combinedPaymentDetails: '',
+  combinedCurrency: '',
+  combinedForeignCurrencyPayment: false,
+  combinedFixedContractAmount: false,
+  combinedAllowSubsidiaryPartners: false,
+  combinedLabeledProducts: '',
+  combinedProhibitShipment: false,
+  combinedDontShipOnDebt: false,
+  combinedDebtAmount: '',
+  combinedVatRate: '',
+  combinedFinancialGroup: '',
+  combinedDdsArticle: '',
+  combinedDebtClassification: '',
+  combinedVatDeclarationOperation: '',
+  combinedHasFile: null,
+  
+  // Поля для объекта "Партнер/Контрагент" (18003)
+  partnerCounterpartyPartnerType: null,
+  partnerCounterpartyName: '',
+  partnerCounterpartyPhone: '',
+  partnerCounterpartyAdditionalPhones: [],
+  partnerCounterpartyEmail: '',
+  partnerCounterpartyAdditionalEmails: [],
+  partnerCounterpartyBusinessRegion: [],
+  partnerCounterpartyRelationshipType: [],
+  partnerCounterpartyLegalAddress: '',
+  partnerCounterpartyActualAddress: '',
+  partnerCounterpartyCopyAddress: false,
+  partnerCounterpartyCategoryB2: '',
+  partnerCounterpartyCategoryCA: '',
+  partnerCounterpartyCkg: '',
+  partnerCounterpartyCkgB2B: '',
+  partnerCounterpartyCounterpartyType: null,
+  partnerCounterpartyInn: '',
+  partnerCounterpartyCounterpartyName: '',
+  partnerCounterpartyShortName: '',
+  partnerCounterpartyKpp: '',
+  partnerCounterpartyOgrn: '',
+  partnerCounterpartyOkpo: '',
+  partnerCounterpartyHeadInn: '',
+  partnerCounterpartyHeadCounterparty: '',
+  partnerCounterpartyIdentityDocument: '',
+  partnerCounterpartyOgrnip: '',
+  partnerCounterpartyRegistrationCountry: '',
+  partnerCounterpartyRegistrationNumber: '',
+  partnerCounterpartyTaxNumber: '',
+  partnerCounterpartyLegalAddress2: '',
+  partnerCounterpartyActualAddress2: '',
+  partnerCounterpartyPhone2: '',
+  partnerCounterpartyEmail2: '',
+  partnerCounterpartyContactPerson: '',
+  
+  // Общие поля для файлов
+  hasFile: null,
+  
+  // Поля для ошибок
+  errorDescription: '',
+  
+  // Поля для вида заявки (если используется)
+  view: '',
+  
+  // Дополнительные поля для индивидуальных нужд
+  activityDirection: '',
   typeSize: '',
   additionalInfoSecondary: '',
-  // Множественные поля
-  additionalPhones: [],
-  additionalEmails: [],
-  // Поля для Скидок (16959)
   discountNomenclatureCode: '',
   discountNomenclatureName: '',
-  discountMechanics: '',
   priceBeforeDiscount: '',
   priceWithDiscount: '',
   discountComment: '',
-
-  // Поля для Цен (16961)
   priceNomenclatureCode: '',
   priceNomenclatureName: '',
   priceType: '',
   priceBefore: '',
   priceAfter: '',
   priceComment: '',
-  // Поля для шага 3
-  partner: '',
-  partnerCode: '',
-  hasFile: null,
   
-  // Поля для изменения (шаг 2)
-  counterpartyCode: '',
+  // Поля для физических лиц
+  birthDate: '',
+  gender: '',
   
-  // Поля для ошибки (шаг 2)
-  errorDescription: '',
-  // Удаляем поле hasScreenshot так как заменяем его на поле для файлов
+  // Поля для сложных объектов (старые названия для совместимости)
+  ogrnip: '',
+  
+  // Поля для ИП
+  headInn2: '',
+  headCounterparty2: ''
 })
 
 // Опции для выпадающих списков
@@ -3138,11 +4725,11 @@ const discountTypeOptions = ref([
 ])
 // Опции для Контрагентов
 const counterpartyTypeOptions = ref([
-  { id: '16953', title: 'ЮЛ (Юридическое лицо)' },
-  { id: '16954', title: 'ОПЮЛ (Обособленное подразделение юридического лица)' },
-  { id: '16957', title: 'ФЛ (Физическое лицо)', },
-  { id: '16955', title: 'ИП (Индивидуальный предприниматель)', },
-  { id: '16959', title: 'ЮЛН (Юридическое лицо нерезедент)', }
+  { id: '17941', title: 'ЮЛ (Юридическое лицо)' },
+  { id: '17943', title: 'ОПЮЛ (Обособленное подразделение юридического лица)' },
+  { id: '17945', title: 'ФЛ (Физическое лицо)', },
+  { id: '17947', title: 'ИП (Индивидуальный предприниматель)', },
+  { id: '17949', title: 'ЮЛН (Юридическое лицо нерезедент)', }
 ])
 
 // Опции для Партнеров
@@ -3392,9 +4979,44 @@ const nomenclatureCodeOptions = ref([
   { id: 'option4', title: 'Вариант 4' },
   { id: 'option5', title: 'Вариант 5' }
 ])
-
+const resetCounterpartySpecificFields = () => {
+  // Сбрасываем специфичные поля при изменении вида контрагента
+  formData.kpp = ''
+  formData.ogrn = ''
+  formData.okpo = ''
+  formData.headInn = ''
+  formData.headCounterparty = ''
+  formData.identityDocument = ''
+  formData.ogrnip = ''
+  formData.registrationCountry = ''
+  formData.registrationNumber = ''
+  formData.taxNumber = ''
+}
 // Настройки шагов для каждого типа заявки и объекта НСИ
 const stepConfigs = {
+  // Для объекта "Партнёр/ Контрагент" (18003)
+  '18003': {
+    '16931': { // Добавление
+      steps: [
+        { stepNumber: 2, title: 'Данные партнера', subtitle: 'Шаг 2' },
+        { stepNumber: 3, title: 'Данные контрагента', subtitle: 'Шаг 3' }
+      ],
+      totalSteps: 3
+    },
+    '16933': { // Изменение
+      steps: [
+        { stepNumber: 2, title: 'Данные партнера', subtitle: 'Шаг 2' },
+        { stepNumber: 3, title: 'Данные контрагента', subtitle: 'Шаг 3' }
+      ],
+      totalSteps: 3
+    },
+    '16935': { // Ошибка
+      steps: [
+        { stepNumber: 2, title: 'Описание ошибки', subtitle: 'Шаг 2' }
+      ],
+      totalSteps: 2
+    }
+  },
   '17961': {
     '16931': { // Добавление
       steps: [
@@ -3449,8 +5071,7 @@ const stepConfigs = {
   },
   '16933': { // Изменение
     steps: [
-      { stepNumber: 2, title: 'Поиск индивидуального соглашения', subtitle: 'Шаг 2' },
-      { stepNumber: 3, title: 'Изменение данных соглашения', subtitle: 'Шаг 3' }
+      { stepNumber: 2, title: 'Изменение данных соглашения', subtitle: 'Шаг 2' }
     ],
     totalSteps: 3
   },
@@ -3473,8 +5094,9 @@ const stepConfigs = {
     },
     '16933': { // Изменение
       steps: [
-        { stepNumber: 2, title: 'Поиск данных', subtitle: 'Шаг 2' },
-        { stepNumber: 3, title: 'Изменение данных', subtitle: 'Шаг 3' }
+        { stepNumber: 2, title: 'Данные партнера', subtitle: 'Шаг 2' },
+        { stepNumber: 3, title: 'Данные контрагента', subtitle: 'Шаг 3' },
+        { stepNumber: 4, title: 'Данные договора', subtitle: 'Шаг 4' }
       ],
       totalSteps: 3
     },
@@ -3757,11 +5379,10 @@ const commentRules = [
   v => !v || v.length <= 250 || 'Комментарий не должен превышать 250 символов'
 ]
 
-const getInnRules = () => { return [
+const getInnRules = () => [
   v => !!v || 'ИНН обязателен',
-  v => /^\d{10,12}$/.test(v) && (v.length === 10 || v.length === 12) || 'ИНН должен содержать 10 или 12 цифр'
+  v => (/^\d{10}$/.test(v) || /^\d{12}$/.test(v)) || 'ИНН должен содержать 10 или 12 цифр'
 ]
-}
 
 const kppRules = [
   v => !v || /^\d{9}$/.test(v) || 'КПП должен содержать 9 цифр'
@@ -3845,69 +5466,6 @@ const handleBankTypeChange = (value) => {
   formData.accountNumber = ''
   formData.correspondentAccount = ''
 }
-const hasAtLeastOneFieldForModification = () => {
-  if (formData.type !== '16933') return true
-  
-  // Проверяем наличие хотя бы одного заполненного поля в зависимости от объекта
-  if (formData.object === '16937') { // Контрагенты
-    // Проверяем поля для изменения контрагента
-    const modificationFields = [
-      formData.partnerCode,
-      formData.partner,
-      formData.actualAddress,
-      formData.legalAddress
-    ]
-    return modificationFields.some(field => field && field.trim() !== '')
-  } 
-  else if (formData.object === '16939') { // Партнеры
-    // Проверяем поля для изменения партнера
-    if (formData.partnerType === '16961') { // КП
-      const modificationFieldsKP = [
-        formData.name,
-        formData.legalAddress,
-        formData.actualAddress
-      ]
-      return modificationFieldsKP.some(field => field && field.trim() !== '')
-    } 
-    else if (formData.partnerType === '16963') { // ЧЛ
-      const modificationFieldsCHL = [
-        formData.name,
-        formData.phone,
-        formData.email
-      ]
-      return modificationFieldsCHL.some(field => field && field.trim() !== '')
-    }
-  }
-  // Для других объектов НСИ
-  else if (formData.object === '16941') { // Банковские счета
-    const modificationFieldsBank = [
-      formData.bik,
-      formData.swift,
-      formData.bankName,
-      formData.accountNumber,
-      formData.correspondentAccount
-    ]
-    return modificationFieldsBank.some(field => field && field.trim() !== '')
-  }
-  else if (formData.object === '16945') { // Склады
-    const modificationFieldsWarehouse = [
-      formData.warehouseName,
-      formData.warehouseAddress,
-      formData.warehousePhone
-    ]
-    return modificationFieldsWarehouse.some(field => field && field.trim() !== '')
-  }
-  else if (formData.object === '16947') { // Упаковки
-    const modificationFieldsPackage = [
-      formData.nomenclature,
-      formData.additionalInfo,
-      formData.weight
-    ]
-    return modificationFieldsPackage.some(field => field && field.trim() !== '')
-  }
-  
-  return false
-}
 const isAddType = computed(() => formData.type === '16931')
 const isEditType = computed(() => formData.type === '16933')
 const isErrorType = computed(() => formData.type === '16935')
@@ -3963,68 +5521,139 @@ const canGoToNextStep = computed(() => {
 // Функция проверки обязательных полей для текущего шага
 const checkRequiredFieldsForCurrentStep = () => {
   // Определяем, какие поля обязательны для текущего шага
-  if (formData.object === '17961') { // Комплекс: Контрагент + Договор
+     if (formData.object === '17961') {
     if (currentStep.value === 2) {
+      // Проверяем обязательные поля для данных контрагента (кроме чекбоксов и файлов)
       return !!formData.complexCounterpartyType && 
              !!formData.complexInn && 
-             !!formData.complexName && 
-             !!formData.complexLegalAddress &&
-             !!formData.complexPhone &&
-             !!formData.complexEmail
+             !!formData.complexName &&
+             !!formData.complexShortName &&
+             !!formData.complexLegalAddress
     } else if (currentStep.value === 3) {
-      return !!formData.contractPurpose && 
-             !!formData.contractNumber && 
-             !!formData.contractDate && 
-             !!formData.contractName && 
-             !!formData.currency
-    }
-  } else if (formData.object === '17959') { // Комплекс: Партнер + Контрагент + Договор
-    if (currentStep.value === 2) {
-      return !!formData.complexPartnerType && 
-             !!formData.complexPartnerName && 
-             !!formData.complexPartnerPhone &&
-             !!formData.complexPartnerEmail
-    } else if (currentStep.value === 3) {
-      return !!formData.complexCounterpartyType2 && 
-             !!formData.complexCounterpartyInn && 
-             !!formData.complexCounterpartyName && 
-             !!formData.complexCounterpartyLegalAddress
-    } else if (currentStep.value === 4) {
+      // Проверяем обязательные поля для данных договора (кроме чекбоксов и файлов)
       return !!formData.complexContractPurpose && 
              !!formData.complexContractNumber && 
              !!formData.complexContractDate && 
              !!formData.complexContractName && 
+             !!formData.complexOrganization &&
              !!formData.complexCurrency
     }
-  } else if (formData.object === '16937') { // Контрагенты
+  }
+  
+  // Для объекта 17959 (Партнер + Контрагент + Договор)
+  else if (formData.object === '17959') {
     if (currentStep.value === 2) {
-      // Общие обязательные поля для всех видов контрагентов
-      let requiredFields = [
-        !!formData.inn,
-        !!formData.name,
-        !!formData.shortName,
-        !!formData.legalAddress,
-        !!formData.phone,
-        !!formData.email
-      ]
+      // Проверяем обязательные поля для данных партнера (кроме чекбоксов и файлов)
+      const partnerFieldsValid = !!formData.combinedPartnerType && 
+             !!formData.combinedPartnerName
       
-      // Дополнительные поля в зависимости от вида контрагента
-      if (formData.counterpartyType === 'ЮЛ (Юридическое лицо)') { // ЮЛ
-        requiredFields.push(!!formData.kpp, !!formData.ogrn, !!formData.okpo)
-      } else if (formData.counterpartyType === 'ОПЮЛ (Обособленное подразделение юридического лица)') { // ОПЮЛ
-        requiredFields.push(!!formData.kpp, !!formData.ogrn, !!formData.headInn, !!formData.headCounterparty)
-      } else if (formData.counterpartyType === 'ФЛ (Физическое лицо)') { // ФЛ
-        requiredFields.push(!!formData.identityDocument)
-      } else if (formData.counterpartyType === 'ИП (Индивидуальный предприниматель)') { // ИП
-        requiredFields.push(!!formData.ogrnip)
-      } else if (formData.counterpartyType === 'ЮЛН (Юридическое лицо нерезедент)') { // ЮЛН
-        requiredFields.push(!!formData.registrationCountry, !!formData.registrationNumber, !!formData.taxNumber)
+      // Для КП (компания) проверяем дополнительные поля
+      if (formData.combinedPartnerType === '16961') {
+        return partnerFieldsValid &&
+               !!formData.combinedPhone &&
+               !!formData.combinedEmail &&
+               !!formData.combinedLegalAddress &&
+               formData.combinedBusinessRegion && formData.combinedBusinessRegion.length > 0
+      }
+      // Для ЧЛ (частное лицо)
+      else if (formData.combinedPartnerType === '16963') {
+        return partnerFieldsValid &&
+               !!formData.combinedPhone &&
+               !!formData.combinedEmail
       }
       
-      return requiredFields.every(field => field)
-    } else if (currentStep.value === 3) {
-      return !!formData.partner && !!formData.partnerCode
+      return false
+    } 
+    else if (currentStep.value === 3) {
+      // Проверяем обязательные поля для данных контрагента (кроме чекбоксов и файлов)
+      return !!formData.combinedCounterpartyType && 
+             !!formData.combinedInn && 
+             !!formData.combinedCounterpartyName &&
+             !!formData.combinedShortName &&
+             !!formData.combinedCounterpartyLegalAddress
+    } 
+    else if (currentStep.value === 4) {
+      // Проверяем обязательные поля для данных договора (кроме чекбоксов и файлов)
+      return !!formData.combinedContractPurpose && 
+             !!formData.combinedContractNumber && 
+             !!formData.combinedContractDate && 
+             !!formData.combinedContractName && 
+             !!formData.combinedOrganization &&
+             !!formData.combinedCurrency
     }
+  }
+  
+  // Для объекта 18003 (Партнер + Контрагент)
+  else if (formData.object === '18003') {
+    if (currentStep.value === 2) {
+      // Проверяем обязательные поля для данных партнера (кроме чекбоксов и файлов)
+      const partnerFieldsValid = !!formData.partnerCounterpartyPartnerType && 
+             !!formData.partnerCounterpartyName
+      
+      // Для КП (компания) проверяем дополнительные поля
+      if (formData.partnerCounterpartyPartnerType === '16961') {
+        return partnerFieldsValid &&
+               !!formData.partnerCounterpartyPhone &&
+               !!formData.partnerCounterpartyEmail &&
+               !!formData.partnerCounterpartyLegalAddress &&
+               formData.partnerCounterpartyBusinessRegion && formData.partnerCounterpartyBusinessRegion.length > 0
+      }
+      // Для ЧЛ (частное лицо)
+      else if (formData.partnerCounterpartyPartnerType === '16963') {
+        return partnerFieldsValid &&
+               !!formData.partnerCounterpartyPhone &&
+               !!formData.partnerCounterpartyEmail
+      }
+      
+      return false
+    } 
+    else if (currentStep.value === 3) {
+      // Проверяем обязательные поля для данных контрагента (кроме чекбоксов и файлов)
+      return !!formData.partnerCounterpartyCounterpartyType && 
+             !!formData.partnerCounterpartyInn && 
+             !!formData.partnerCounterpartyCounterpartyName &&
+             !!formData.partnerCounterpartyShortName &&
+             !!formData.partnerCounterpartyLegalAddress
+    }
+  } else if (formData.object === '16937') { // Контрагенты
+      if (currentStep.value === 2) {
+        // Общие обязательные поля для всех видов контрагентов
+        let requiredFields = [
+          !!formData.partnerCode,
+          !!formData.partner,
+          !!formData.counterpartyType,
+          !!formData.inn,
+          !!formData.name,
+          !!formData.shortName,
+          !!formData.legalAddress,
+          !!formData.phone,
+          !!formData.email,
+          !!formData.contactPerson
+        ]
+        
+        // Дополнительные поля в зависимости от вида контрагента
+        if (formData.counterpartyType === '17941' || formData.counterpartyType === '17943') { // ЮЛ, ОПЮЛ
+          requiredFields.push(!!formData.kpp, !!formData.ogrn, !!formData.okpo)
+        }
+        
+        if (formData.counterpartyType === '17943') { // ОПЮЛ
+          requiredFields.push(!!formData.headInn, !!formData.headCounterparty)
+        }
+        
+        if (formData.counterpartyType === '17945') { // ФЛ
+          requiredFields.push(!!formData.identityDocument)
+        }
+        
+        if (formData.counterpartyType === '17947') { // ИП
+          requiredFields.push(!!formData.ogrnip)
+        }
+        
+        if (formData.counterpartyType === '17949') { // ЮЛН
+          requiredFields.push(!!formData.registrationCountry, !!formData.registrationNumber, !!formData.taxNumber)
+        }
+        
+        return requiredFields.every(field => field)
+      }
   } else if (formData.object === '16963') { // Типовые соглашения
     if (currentStep.value === 2) {
       return !!formData.typicalAgreementName && 
@@ -4140,9 +5769,11 @@ const handleObjectChange = () => {
     currentStep.value = 1
   }
   if (formData.object === '17961') {
-    resetComplexFields17961()
+    //resetComplexFields17961()
   } else if (formData.object === '17959') {
-    resetComplexFields17959()
+    //resetComplexFields17959()
+  } else if (formData.object === '18003') {
+    //resetComplexFields18003()
   }
   // Сбрасываем поля, специфичные для объекта
   if (formData.object === '16937') { // Контрагенты
@@ -4172,37 +5803,6 @@ const handleObjectChange = () => {
     formData.taxNumber = ''
     formData.contactPerson = ''
   }
-}
-const resetComplexFields17961 = () => {
-  formData.complexCounterpartyType = null
-  formData.complexInn = ''
-  formData.complexName = ''
-  formData.complexLegalAddress = ''
-  formData.complexPhone = ''
-  formData.complexEmail = ''
-  formData.contractPurpose = ''
-  formData.contractNumber = ''
-  formData.contractDate = ''
-  formData.contractName = ''
-  formData.currency = ''
-}
-
-const resetComplexFields17959 = () => {
-  formData.complexPartnerType = null
-  formData.complexPartnerName = ''
-  formData.complexPartnerCode = ''
-  formData.complexPartnerPhone = ''
-  formData.complexPartnerEmail = ''
-  formData.complexCounterpartyType2 = null
-  formData.complexCounterpartyInn = ''
-  formData.complexCounterpartyName = ''
-  formData.complexCounterpartyLegalAddress = ''
-  formData.complexContractPurpose = ''
-  formData.complexContractNumber = ''
-  formData.complexContractDate = ''
-  formData.complexContractName = ''
-  formData.complexCurrency = ''
-  formData.complexHasFile = null
 }
 
 const handleCopyAddress = (value) => {
@@ -4236,11 +5836,6 @@ const getRequestTypeTitle = (id) => {
   return item ? item.title : ''
 }
 
-const getRequestViewTitle = (id) => {
-  const item = requestViewOptions.value.find(item => item.id === id)
-  return item ? item.title : ''
-}
-
 const getNsiObjectTitle = (id) => {
   const item = nsiObjectOptions.value.find(item => item.id === id)
   return item ? item.title : ''
@@ -4255,48 +5850,461 @@ const getPartnerTypeTitle = (id) => {
   const item = partnerTypeOptions.value.find(item => item.id === id)
   return item ? item.title : ''
 }
-
 const getAllRequestFields = () => {
   const fields = []
   
+  // Основные поля шага 1
+  fields.push('=== ОСНОВНЫЕ ДАННЫЕ ===')
   fields.push(`Тип заявки: ${getRequestTypeTitle(formData.type)}`)
   fields.push(`Объект MDM: ${getNsiObjectTitle(formData.object)}`)
   
-  if (formData.object === '17961') { // Комплекс: Контрагент + Договор
+  if (formData.comment) {
+    fields.push(`Комментарий: ${formData.comment}`)
+  }
+  
+  // Поля для объекта "Контрагенты" (16937)
+  if (formData.object === '16937') {
     fields.push('\n=== ДАННЫЕ КОНТРАГЕНТА ===')
-    fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.complexCounterpartyType)}`)
-    fields.push(`ИНН: ${formData.complexInn}`)
-    fields.push(`Наименование: ${formData.complexName}`)
-    fields.push(`Юридический адрес: ${formData.complexLegalAddress}`)
-    if (formData.complexPhone) fields.push(`Телефон: ${formData.complexPhone}`)
-    if (formData.complexEmail) fields.push(`Электронная почта: ${formData.complexEmail}`)
+    fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.counterpartyType)}`)
+    if (formData.partner) fields.push(`Партнер: ${formData.partner}`)
+    if (formData.partnerCode) fields.push(`Код партнера: ${formData.partnerCode}`)
+    if (formData.inn) fields.push(`ИНН: ${formData.inn}`)
+    if (formData.name) fields.push(`Наименование: ${formData.name}`)
+    if (formData.shortName) fields.push(`Сокр. наименование: ${formData.shortName}`)
     
+    // Специфичные поля для ЮЛ и ОПЮЛ
+    if (['17941', '17943'].includes(formData.counterpartyType)) {
+      if (formData.kpp) fields.push(`КПП: ${formData.kpp}`)
+      if (formData.ogrn) fields.push(`ОГРН: ${formData.ogrn}`)
+      if (formData.okpo) fields.push(`ОКПО: ${formData.okpo}`)
+    }
+    
+    // Поля для ОПЮЛ
+    if (formData.counterpartyType === '17943') {
+      if (formData.headInn) fields.push(`ИНН Головного контрагента: ${formData.headInn}`)
+      if (formData.headCounterparty) fields.push(`Головной контрагент: ${formData.headCounterparty}`)
+    }
+    
+    // Поле для ФЛ
+    if (formData.counterpartyType === '17945' && formData.identityDocument) {
+      fields.push(`Документ удост. личность: ${formData.identityDocument}`)
+    }
+    
+    // Поле для ИП
+    if (formData.counterpartyType === '17947' && formData.ogrnip) {
+      fields.push(`ОГРНИП: ${formData.ogrnip}`)
+    }
+    
+    // Поля для ЮЛН
+    if (formData.counterpartyType === '17949') {
+      if (formData.registrationCountry) fields.push(`Страна регистрации: ${formData.registrationCountry}`)
+      if (formData.registrationNumber) fields.push(`Рег. номер: ${formData.registrationNumber}`)
+      if (formData.taxNumber) fields.push(`Налоговый номер: ${formData.taxNumber}`)
+    }
+    
+    if (formData.legalAddress) fields.push(`Юридический адрес: ${formData.legalAddress}`)
+    if (formData.actualAddress) fields.push(`Фактический адрес: ${formData.actualAddress}`)
+    if (formData.copyAddress) fields.push(`Копировать адрес: Да`)
+    if (formData.phone) fields.push(`Телефон: ${formData.phone}`)
+    if (formData.email) fields.push(`Электронная почта: ${formData.email}`)
+    if (formData.contactPerson) fields.push(`Контактное лицо: ${formData.contactPerson}`)
+  }
+  
+  // Поля для объекта "Партнеры" (16939)
+  else if (formData.object === '16939') {
+    fields.push('\n=== ДАННЫЕ ПАРТНЕРА ===')
+    fields.push(`Вид партнера: ${getPartnerTypeTitle(formData.partnerType)}`)
+    
+    if (formData.name) fields.push(`Наименование: ${formData.name}`)
+    
+    // Телефоны
+    if (formData.phone) {
+      fields.push(`Телефон: ${formData.phone}`)
+    }
+    if (formData.additionalPhones && formData.additionalPhones.length > 0) {
+      formData.additionalPhones.forEach((phone, index) => {
+        if (phone) fields.push(`Телефон ${index + 2}: ${phone}`)
+      })
+    }
+    
+    // Emails
+    if (formData.email) {
+      fields.push(`Электронная почта: ${formData.email}`)
+    }
+    if (formData.additionalEmails && formData.additionalEmails.length > 0) {
+      formData.additionalEmails.forEach((email, index) => {
+        if (email) fields.push(`Email ${index + 2}: ${email}`)
+      })
+    }
+    
+    if (formData.businessRegion && formData.businessRegion.length > 0) {
+      const regions = formData.businessRegion.map(id => {
+        const item = businessRegionOptions.value.find(item => item.id === id)
+        return item ? item.title : id
+      }).join(', ')
+      fields.push(`Бизнес-регион: ${regions}`)
+    }
+    
+    if (formData.relationshipType && formData.relationshipType.length > 0) {
+      const relationships = formData.relationshipType.map(id => {
+        const item = relationshipTypeOptions.value.find(item => item.id === id)
+        return item ? item.title : id
+      }).join(', ')
+      fields.push(`Тип отношений: ${relationships}`)
+    }
+    
+    if (formData.legalAddress) fields.push(`Юридический адрес: ${formData.legalAddress}`)
+    if (formData.actualAddress) fields.push(`Фактический адрес: ${formData.actualAddress}`)
+    if (formData.copyAddress) fields.push(`Копировать адрес: Да`)
+    
+    if (formData.categoryB2) {
+      const item = categoryB2Options.value.find(item => item.id === formData.categoryB2)
+      fields.push(`Категория B2: ${item ? item.title : formData.categoryB2}`)
+    }
+    
+    if (formData.categoryCA) {
+      const item = categoryCAOptions.value.find(item => item.id === formData.categoryCA)
+      fields.push(`Категория СА: ${item ? item.title : formData.categoryCA}`)
+    }
+    
+    if (formData.ckg) {
+      const item = ckgOptions.value.find(item => item.id === formData.ckg)
+      fields.push(`ЦКГ: ${item ? item.title : formData.ckg}`)
+    }
+    
+    if (formData.ckgB2B) {
+      const item = ckgB2BOptions.value.find(item => item.id === formData.ckgB2B)
+      fields.push(`ЦКГ B2B: ${item ? item.title : formData.ckgB2B}`)
+    }
+    
+    if (formData.isNonResident) {
+      fields.push(`ЮЛН: Да`)
+      if (formData.registrationCountry) fields.push(`Страна регистрации: ${formData.registrationCountry}`)
+      if (formData.registrationNumber) fields.push(`Рег. номер: ${formData.registrationNumber}`)
+      if (formData.taxNumber) fields.push(`Налоговый номер: ${formData.taxNumber}`)
+    }
+    
+    if (formData.partner) fields.push(`Партнер (1С ERP): ${formData.partner}`)
+  }
+  
+  // Поля для объекта "Банковские счета" (16941)
+  else if (formData.object === '16941') {
+    fields.push('\n=== ДАННЫЕ БАНКОВСКОГО СЧЕТА ===')
+    
+    if (formData.bankAccountStatus) {
+      const item = bankAccountStatusOptions.value.find(item => item.id === formData.bankAccountStatus)
+      fields.push(`Статус: ${item ? item.title : formData.bankAccountStatus}`)
+    }
+    
+    if (formData.counterparty) fields.push(`Контрагент: ${formData.counterparty}`)
+    if (formData.counterpartyInn) fields.push(`Контрагент ИНН: ${formData.counterpartyInn}`)
+    
+    if (formData.bankType) {
+      const item = bankTypeOptions.value.find(item => item.id === formData.bankType)
+      fields.push(`Вид банка: ${item ? item.title : formData.bankType}`)
+    }
+    
+    // Для национального банка
+    if (formData.bankType === 'national' || formData.bankType === '16971') {
+      if (formData.bik) fields.push(`БИК: ${formData.bik}`)
+      if (formData.bankName) fields.push(`Наименование банка: ${formData.bankName}`)
+      if (formData.currency) {
+        const item = currencyOptions.value.find(item => item.CURRENCY === formData.currency)
+        fields.push(`Валюта: ${item ? item.FULL_NAME : formData.currency}`)
+      }
+      if (formData.accountNumber) fields.push(`Расчетный счет: ${formData.accountNumber}`)
+      if (formData.correspondentAccount) fields.push(`Корреспондентский счет: ${formData.correspondentAccount}`)
+      if (formData.bankAddress) fields.push(`Адрес банка: ${formData.bankAddress}`)
+    }
+    
+    // Для международного банка
+    else if (formData.bankType === 'international' || formData.bankType === '16973') {
+      if (formData.swift) fields.push(`SWIFT: ${formData.swift}`)
+      if (formData.bankName) fields.push(`Наименование банка: ${formData.bankName}`)
+      if (formData.bankRegistrationCity) fields.push(`Страна регистрации и город: ${formData.bankRegistrationCity}`)
+      if (formData.bankAddress) fields.push(`Адрес банка: ${formData.bankAddress}`)
+      if (formData.currency) {
+        const item = currencyOptions.value.find(item => item.CURRENCY === formData.currency)
+        fields.push(`Валюта: ${item ? item.FULL_NAME : formData.currency}`)
+      }
+      if (formData.accountNumber) fields.push(`Расчетный счет: ${formData.accountNumber}`)
+      if (formData.correspondentAccount) fields.push(`Корреспондентский счет: ${formData.correspondentAccount}`)
+    }
+  }
+  
+  // Поля для объекта "Типовые соглашения" (16963)
+  else if (formData.object === '16963') {
+    fields.push('\n=== ДАННЫЕ ТИПОВОГО СОГЛАШЕНИЯ ===')
+    if (formData.typicalAgreementBasis) fields.push(`Основание: ${formData.typicalAgreementBasis}`)
+    if (formData.typicalAgreementName) fields.push(`Наименование: ${formData.typicalAgreementName}`)
+    if (formData.typicalAgreementTerms) fields.push(`Условия: ${formData.typicalAgreementTerms}`)
+    
+    if (formData.typicalAgreementOperation) {
+      const item = agreementOperationOptions.value.find(item => item.id === formData.typicalAgreementOperation)
+      fields.push(`Операция (соглашение): ${item ? item.title : formData.typicalAgreementOperation}`)
+    }
+    
+    if (formData.typicalAgreementDepartment) fields.push(`Подразделение: ${formData.typicalAgreementDepartment}`)
+    if (formData.typicalAgreementPeriodFrom) fields.push(`Период действия с: ${formData.typicalAgreementPeriodFrom}`)
+    if (formData.typicalAgreementPeriodTo) fields.push(`Период действия по: Бессрочное`)
+    else if (formData.typicalAgreementPeriodTo === false) fields.push(`Период действия по: Не указано`)
+    
+    if (formData.typicalAgreementCurrency) {
+      const item = currencyOptions.value.find(item => item.CURRENCY === formData.typicalAgreementCurrency)
+      fields.push(`Валюта: ${item ? item.FULL_NAME : formData.typicalAgreementCurrency}`)
+    }
+    
+    if (formData.typicalAgreementSchedule) fields.push(`График: ${formData.typicalAgreementSchedule}`)
+    if (formData.typicalAgreementAdditional) fields.push(`Дополнительно: ${formData.typicalAgreementAdditional}`)
+  }
+  
+  // Поля для объекта "Индивидуальные соглашения" (17957)
+  else if (formData.object === '17957') {
+    fields.push('\n=== ДАННЫЕ ИНДИВИДУАЛЬНОГО СОГЛАШЕНИЯ ===')
+    if (formData.individualAgreementBasis) fields.push(`Основание: ${formData.individualAgreementBasis}`)
+    if (formData.individualAgreementName) fields.push(`Наименование: ${formData.individualAgreementName}`)
+    if (formData.individualAgreementPartner) fields.push(`Партнер: ${formData.individualAgreementPartner}`)
+    
+    if (formData.individualAgreementOrganization) {
+      const item = organizationOptions.value.find(item => item.id === formData.individualAgreementOrganization)
+      fields.push(`Организация: ${item ? item.title : formData.individualAgreementOrganization}`)
+    }
+    
+    if (formData.individualAgreementDate) fields.push(`Дата: ${formData.individualAgreementDate}`)
+    if (formData.individualAgreementPeriodFrom) fields.push(`Период действия с: ${formData.individualAgreementPeriodFrom}`)
+    if (formData.individualAgreementPeriodTo) fields.push(`Период действия по: Бессрочное`)
+    else if (formData.individualAgreementPeriodTo === false) fields.push(`Период действия по: Не указано`)
+    
+    if (formData.individualAgreementNumber) fields.push(`Номер: ${formData.individualAgreementNumber}`)
+    
+    if (formData.individualAgreementOperation) {
+      const item = agreementOperationOptions.value.find(item => item.id === formData.individualAgreementOperation)
+      fields.push(`Операция (соглашение): ${item ? item.title : formData.individualAgreementOperation}`)
+    }
+    
+    if (formData.individualAgreementType) {
+      const item = agreementTypeOptions.value.find(item => item.id === formData.individualAgreementType)
+      fields.push(`Тип соглашения: ${item ? item.title : formData.individualAgreementType}`)
+    }
+    
+    if (formData.individualAgreementTypical) fields.push(`Типовое соглашение: ${formData.individualAgreementTypical}`)
+    if (formData.individualAgreementPaymentSchedule) fields.push(`График оплаты: ${formData.individualAgreementPaymentSchedule}`)
+    
+    if (formData.individualAgreementCurrency) {
+      const item = currencyOptions.value.find(item => item.CURRENCY === formData.individualAgreementCurrency)
+      fields.push(`Валюта: ${item ? item.FULL_NAME : formData.individualAgreementCurrency}`)
+    }
+    
+    if (formData.individualAgreementPricing) fields.push(`Ценообразование: ${formData.individualAgreementPricing}`)
+    if (formData.individualAgreementAdditional) fields.push(`Дополнительно: ${formData.individualAgreementAdditional}`)
+  }
+  
+  // Поля для объекта "Договоры" (16943)
+  else if (formData.object === '16943') {
     fields.push('\n=== ДАННЫЕ ДОГОВОРА ===')
+    
     if (formData.contractPurpose) {
       const item = contractPurposeOptions.value.find(item => item.id === formData.contractPurpose)
       fields.push(`Цель договора: ${item ? item.title : formData.contractPurpose}`)
     }
+    
     if (formData.contractNumber) fields.push(`Номер договора: ${formData.contractNumber}`)
     if (formData.contractDate) fields.push(`Дата договора: ${formData.contractDate}`)
+    if (formData.contractPeriodFrom) fields.push(`Период действия с: ${formData.contractPeriodFrom}`)
+    if (formData.contractPeriodTo) fields.push(`Период действия по: ${formData.contractPeriodTo}`)
     if (formData.contractName) fields.push(`Наименование договора: ${formData.contractName}`)
+    if (formData.department) fields.push(`Подразделение: ${formData.department}`)
+    
+    if (formData.organization) {
+      const item = organizationOptions.value.find(item => item.id === formData.organization)
+      fields.push(`Организация: ${item ? item.title : formData.organization}`)
+    }
+    
+    if (formData.organizationInn) fields.push(`Организация ИНН: ${formData.organizationInn}`)
+    if (formData.organizationAccount) fields.push(`Счет организации: ${formData.organizationAccount}`)
+    if (formData.counterparty) fields.push(`Контрагент: ${formData.counterparty}`)
+    if (formData.counterpartyInn) fields.push(`Контрагент ИНН: ${formData.counterpartyInn}`)
+    if (formData.partner) fields.push(`Партнер: ${formData.partner}`)
+    
+    if (formData.paymentDetails) {
+      const item = paymentDetailsOptions.value.find(item => item.id === formData.paymentDetails)
+      fields.push(`Детализация расчётов: ${item ? item.title : formData.paymentDetails}`)
+    }
+    
     if (formData.currency) {
       const item = currencyOptions.value.find(item => item.CURRENCY === formData.currency)
       fields.push(`Валюта: ${item ? item.FULL_NAME : formData.currency}`)
     }
     
-  } else if (formData.object === '17959') { // Комплекс: Партнер + Контрагент + Договор
-    fields.push('\n=== ДАННЫЕ ПАРТНЕРА ===')
-    fields.push(`Вид партнера: ${getPartnerTypeTitle(formData.complexPartnerType)}`)
-    fields.push(`Наименование: ${formData.complexPartnerName}`)
-    fields.push(`Код партнера: ${formData.complexPartnerCode}`)
-    if (formData.complexPartnerPhone) fields.push(`Телефон: ${formData.complexPartnerPhone}`)
-    if (formData.complexPartnerEmail) fields.push(`Электронная почта: ${formData.complexPartnerEmail}`)
+    if (formData.foreignCurrencyPayment) fields.push(`Оплата в иностранной валюте: Да`)
+    if (formData.fixedContractAmount) fields.push(`Сумма договора фиксирована: Да`)
+    if (formData.allowSubsidiaryPartners) fields.push(`Разрешена работа с дочерними партнерами: Да`)
     
+    if (formData.labeledProducts) {
+      const item = labeledProductsOptions.value.find(item => item.id === formData.labeledProducts)
+      fields.push(`Маркируемая продукция: ${item ? item.title : formData.labeledProducts}`)
+    }
+    
+    if (formData.prohibitShipment) fields.push(`Запрещать отгрузку: Да`)
+    if (formData.dontShipOnDebt) fields.push(`Не отгружать при сумме задолженности: Да`)
+    if (formData.debtAmount) fields.push(`Сумма задолженности: ${formData.debtAmount}`)
+    
+    if (formData.vatRate) {
+      const item = vatRateOptions.value.find(item => item.id === formData.vatRate)
+      fields.push(`Ставка НДС: ${item ? item.title : formData.vatRate}`)
+    }
+    
+    if (formData.financialGroup) {
+      const item = financialGroupOptions.value.find(item => item.id === formData.financialGroup)
+      fields.push(`Группа фин. учета: ${item ? item.title : formData.financialGroup}`)
+    }
+    
+    if (formData.ddsArticle) {
+      const item = ddsArticleOptions.value.find(item => item.id === formData.ddsArticle)
+      fields.push(`Статья ДДС: ${item ? item.title : formData.ddsArticle}`)
+    }
+    
+    if (formData.debtClassification) {
+      const item = debtClassificationOptions.value.find(item => item.id === formData.debtClassification)
+      fields.push(`Классификация задолженности: ${item ? item.title : formData.debtClassification}`)
+    }
+    
+    if (formData.vatDeclarationOperation) {
+      const item = vatDeclarationOperationOptions.value.find(item => item.id === formData.vatDeclarationOperation)
+      fields.push(`Операция декларации по НДС: ${item ? item.title : formData.vatDeclarationOperation}`)
+    }
+  }
+  
+  // Поля для объекта "Склады" (16945)
+  else if (formData.object === '16945') {
+    fields.push('\n=== ДАННЫЕ СКЛАДА ===')
+    
+    if (formData.warehouseType) {
+      const item = warehouseTypeOptions.value.find(item => item.id === formData.warehouseType)
+      fields.push(`Тип склада: ${item ? item.title : formData.warehouseType}`)
+    }
+    
+    if (formData.warehouseGroup) fields.push(`Группа складов: ${formData.warehouseGroup}`)
+    if (formData.warehouseName) fields.push(`Наименование склада: ${formData.warehouseName}`)
+    
+    if (formData.priceSource) {
+      const item = priceSourceOptions.value.find(item => item.id === formData.priceSource)
+      fields.push(`Источник информации о ценах: ${item ? item.title : formData.priceSource}`)
+    }
+    
+    if (formData.accountingPriceType) fields.push(`Учетный вид цены: ${formData.accountingPriceType}`)
+    if (formData.controlFreeBalance) fields.push(`Контролировать свободные остатки: Да`)
+    if (formData.controlOperationalBalance) fields.push(`Контролировать оперативные остатки: Да`)
+    if (formData.department) fields.push(`Подразделение: ${formData.department}`)
+    if (formData.responsiblePerson) fields.push(`Ответственный (МОЛ): ${formData.responsiblePerson}`)
+    
+    if (formData.businessRegion) {
+      const item = businessRegionOptions.value.find(item => item.id === formData.businessRegion)
+      fields.push(`Бизнес-регион: ${item ? item.title : formData.businessRegion}`)
+    }
+    
+    if (formData.orderScheme) fields.push(`Ордерная схема: Да`)
+    if (formData.hasCells) fields.push(`Ячейки: Да`)
+    if (formData.warehouseAddress) fields.push(`Адрес склада: ${formData.warehouseAddress}`)
+    if (formData.warehousePhone) fields.push(`Телефон склада: ${formData.warehousePhone}`)
+    if (formData.warehouseComment) fields.push(`Комментарий: ${formData.warehouseComment}`)
+    if (formData.warehouseCode) fields.push(`Склад (код): ${formData.warehouseCode}`)
+    if (formData.warehouseNameSecondary) fields.push(`Наименование склада (дополнительное): ${formData.warehouseNameSecondary}`)
+  }
+  
+  // Поля для объекта "Упаковки" (16947)
+  else if (formData.object === '16947') {
+    fields.push('\n=== ДАННЫЕ УПАКОВКИ ===')
+    if (formData.nomenclature) fields.push(`Номенклатура: ${formData.nomenclature}`)
+    if (formData.nomenclatureCodes) fields.push(`Номенклатура (код): ${formData.nomenclatureCodes}`)
+    if (formData.additionalInfo) fields.push(`Дополнительно: ${formData.additionalInfo}`)
+    if (formData.measurementUnit) fields.push(`Единица измерения: ${formData.measurementUnit}`)
+    if (formData.packageComposition) fields.push(`1 шт упаковки состоит из: ${formData.packageComposition}`)
+    if (formData.weight) fields.push(`Вес: ${formData.weight} кг`)
+    if (formData.height) fields.push(`Высота, м: ${formData.height}`)
+    if (formData.width) fields.push(`Ширина, м: ${formData.width}`)
+    if (formData.depth) fields.push(`Глубина, м: ${formData.depth}`)
+    if (formData.volume) fields.push(`Объем: ${formData.volume}`)
+    if (formData.packageName) fields.push(`Упаковка: ${formData.packageName}`)
+  }
+  
+  // Поля для объекта "Скидки (наценки)" (16959)
+  else if (formData.object === '16959') {
+    fields.push('\n=== ДАННЫЕ СКИДКИ ===')
+    if (formData.discountBasis) fields.push(`Основание: ${formData.discountBasis}`)
+    if (formData.discountName) fields.push(`Наименование: ${formData.discountName}`)
+    
+    if (formData.discountType) {
+      const item = discountTypeOptions.value.find(item => item.id === formData.discountType)
+      fields.push(`Тип скидки: ${item ? item.title : formData.discountType}`)
+    }
+    
+    if (formData.salesChannel) {
+      const item = salesChannelOptions.value.find(item => item.id === formData.salesChannel)
+      fields.push(`Канал продаж: ${item ? item.title : formData.salesChannel}`)
+    }
+    
+    if (formData.discountPeriodFrom) fields.push(`Период действия с: ${formData.discountPeriodFrom}`)
+    if (formData.discountPeriodTo) fields.push(`Период действия по: ${formData.discountPeriodTo}`)
+    if (formData.discountSelections) fields.push(`Отборы (соглашения): ${formData.discountSelections}`)
+    if (formData.discountMechanics) fields.push(`Механика и условия предоставления: ${formData.discountMechanics}`)
+    if (formData.discountAdditional) fields.push(`Дополнительно: ${formData.discountAdditional}`)
+  }
+  
+  // Поля для объекта "Цены (прайс-лист)" (16961)
+  else if (formData.object === '16961') {
+    fields.push('\n=== ДАННЫЕ ЦЕНЫ ===')
+    if (formData.priceBasis) fields.push(`Основание: ${formData.priceBasis}`)
+    if (formData.priceChangeReason) fields.push(`Причина изменения: ${formData.priceChangeReason}`)
+    if (formData.pricePeriodFrom) fields.push(`Период действия с: ${formData.pricePeriodFrom}`)
+    if (formData.pricePeriodTo) fields.push(`Период действия по: ${formData.pricePeriodTo}`)
+    if (formData.priceDepartment) fields.push(`Подразделение: ${formData.priceDepartment}`)
+    if (formData.priceAdditional) fields.push(`Дополнительно: ${formData.priceAdditional}`)
+  }
+  
+  // Поля для объекта "Контрагент/Договор" (17961)
+  else if (formData.object === '17961') {
     fields.push('\n=== ДАННЫЕ КОНТРАГЕНТА ===')
-    fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.complexCounterpartyType2)}`)
-    fields.push(`ИНН: ${formData.complexCounterpartyInn}`)
-    fields.push(`Наименование: ${formData.complexCounterpartyName}`)
-    fields.push(`Юридический адрес: ${formData.complexCounterpartyLegalAddress}`)
+    fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.complexCounterpartyType)}`)
+    if (formData.complexInn) fields.push(`ИНН: ${formData.complexInn}`)
+    if (formData.complexName) fields.push(`Наименование: ${formData.complexName}`)
+    if (formData.complexShortName) fields.push(`Сокр. наименование: ${formData.complexShortName}`)
+    
+    // Специфичные поля для ЮЛ и ОПЮЛ
+    if (['17941', '17943'].includes(formData.complexCounterpartyType)) {
+      if (formData.complexKpp) fields.push(`КПП: ${formData.complexKpp}`)
+      if (formData.complexOgrn) fields.push(`ОГРН: ${formData.complexOgrn}`)
+      if (formData.complexOkpo) fields.push(`ОКПО: ${formData.complexOkpo}`)
+    }
+    
+    // Поля для ОПЮЛ
+    if (formData.complexCounterpartyType === '17943') {
+      if (formData.complexHeadInn) fields.push(`ИНН Головного контрагента: ${formData.complexHeadInn}`)
+      if (formData.complexHeadCounterparty) fields.push(`Головной контрагент: ${formData.complexHeadCounterparty}`)
+    }
+    
+    // Поле для ФЛ
+    if (formData.complexCounterpartyType === '17945' && formData.complexIdentityDocument) {
+      fields.push(`Документ удост. личность: ${formData.complexIdentityDocument}`)
+    }
+    
+    // Поле для ИП
+    if (formData.complexCounterpartyType === '17947' && formData.complexOgrnip) {
+      fields.push(`ОГРНИП: ${formData.complexOgrnip}`)
+    }
+    
+    // Поля для ЮЛН
+    if (formData.complexCounterpartyType === '17949') {
+      if (formData.complexRegistrationCountry) fields.push(`Страна регистрации: ${formData.complexRegistrationCountry}`)
+      if (formData.complexRegistrationNumber) fields.push(`Рег. номер: ${formData.complexRegistrationNumber}`)
+      if (formData.complexTaxNumber) fields.push(`Налоговый номер: ${formData.complexTaxNumber}`)
+    }
+    
+    if (formData.complexLegalAddress) fields.push(`Юридический адрес: ${formData.complexLegalAddress}`)
+    if (formData.complexActualAddress) fields.push(`Фактический адрес: ${formData.complexActualAddress}`)
+    if (formData.complexPhone) fields.push(`Телефон: ${formData.complexPhone}`)
+    if (formData.complexEmail) fields.push(`Электронная почта: ${formData.complexEmail}`)
+    if (formData.complexContactPerson) fields.push(`Контактное лицо: ${formData.complexContactPerson}`)
     
     fields.push('\n=== ДАННЫЕ ДОГОВОРА ===')
     if (formData.complexContractPurpose) {
@@ -4305,404 +6313,390 @@ const getAllRequestFields = () => {
     }
     if (formData.complexContractNumber) fields.push(`Номер договора: ${formData.complexContractNumber}`)
     if (formData.complexContractDate) fields.push(`Дата договора: ${formData.complexContractDate}`)
+    if (formData.complexContractPeriodFrom) fields.push(`Период действия с: ${formData.complexContractPeriodFrom}`)
+    if (formData.complexContractPeriodTo) fields.push(`Период действия по: ${formData.complexContractPeriodTo}`)
     if (formData.complexContractName) fields.push(`Наименование договора: ${formData.complexContractName}`)
+    if (formData.complexDepartment) fields.push(`Подразделение: ${formData.complexDepartment}`)
+    
+    if (formData.complexOrganization) {
+      const item = organizationOptions.value.find(item => item.id === formData.complexOrganization)
+      fields.push(`Организация: ${item ? item.title : formData.complexOrganization}`)
+    }
+    
+    if (formData.complexOrganizationInn) fields.push(`Организация ИНН: ${formData.complexOrganizationInn}`)
+    if (formData.complexOrganizationAccount) fields.push(`Счет организации: ${formData.complexOrganizationAccount}`)
+    if (formData.complexPartner) fields.push(`Партнер: ${formData.complexPartner}`)
+    
+    if (formData.complexPaymentDetails) {
+      const item = paymentDetailsOptions.value.find(item => item.id === formData.complexPaymentDetails)
+      fields.push(`Детализация расчётов: ${item ? item.title : formData.complexPaymentDetails}`)
+    }
+    
     if (formData.complexCurrency) {
       const item = currencyOptions.value.find(item => item.CURRENCY === formData.complexCurrency)
       fields.push(`Валюта: ${item ? item.FULL_NAME : formData.complexCurrency}`)
     }
-    fields.push(`Файлы приложены: ${formData.complexHasFile && formData.complexHasFile.length > 0 ? 'Да' : 'Нет'}`)
-  }
-else if (formData.object === '16963') { // Типовые соглашения
-  if (formData.typicalAgreementName) fields.push(`Наименование: ${formData.typicalAgreementName}`)
-  if (formData.typicalAgreementTerms) fields.push(`Условия: ${formData.typicalAgreementTerms}`)
-  
-  if (formData.typicalAgreementOperation) {
-    const item = agreementOperationOptions.value.find(item => item.id === formData.typicalAgreementOperation)
-    fields.push(`Операция (соглашение): ${item ? item.title : formData.typicalAgreementOperation}`)
-  }
-  
-  if (formData.typicalAgreementDepartment) fields.push(`Подразделение: ${formData.typicalAgreementDepartment}`)
-  if (formData.typicalAgreementPeriodFrom) fields.push(`Период действия с: ${formData.typicalAgreementPeriodFrom}`)
-  fields.push(`Период действия по (бессрочное): ${formData.typicalAgreementPeriodTo ? 'Да' : 'Нет'}`)
-  if (formData.typicalAgreementCurrency) fields.push(`Валюта: ${formData.typicalAgreementCurrency}`)
-  if (formData.typicalAgreementSchedule) fields.push(`График: ${formData.typicalAgreementSchedule}`)
-  if (formData.typicalAgreementAdditional) fields.push(`Дополнительно: ${formData.typicalAgreementAdditional}`)
-  
-} else if (formData.object === '17957') { // Индивидуальные соглашения
-  if (formData.individualAgreementName) fields.push(`Наименование: ${formData.individualAgreementName}`)
-  if (formData.individualAgreementPartner) fields.push(`Партнер: ${formData.individualAgreementPartner}`)
-  
-  if (formData.individualAgreementOrganization) {
-    const item = organizationOptions.value.find(item => item.id === formData.individualAgreementOrganization)
-    fields.push(`Организация: ${item ? item.title : formData.individualAgreementOrganization}`)
-  }
-  
-  if (formData.individualAgreementDate) fields.push(`Дата: ${formData.individualAgreementDate}`)
-  if (formData.individualAgreementPeriodFrom) fields.push(`Период действия с: ${formData.individualAgreementPeriodFrom}`)
-  fields.push(`Период действия по (бессрочное): ${formData.individualAgreementPeriodTo ? 'Да' : 'Нет'}`)
-  if (formData.individualAgreementNumber) fields.push(`Номер: ${formData.individualAgreementNumber}`)
-  
-  if (formData.individualAgreementOperation) {
-    const item = agreementOperationOptions.value.find(item => item.id === formData.individualAgreementOperation)
-    fields.push(`Операция (соглашение): ${item ? item.title : formData.individualAgreementOperation}`)
-  }
-  
-  if (formData.individualAgreementType) {
-    const item = agreementTypeOptions.value.find(item => item.id === formData.individualAgreementType)
-    fields.push(`Тип соглашения: ${item ? item.title : formData.individualAgreementType}`)
-  }
-  
-  if (formData.individualAgreementTypical) fields.push(`Типовое соглашение: ${formData.individualAgreementTypical}`)
-  if (formData.individualAgreementPaymentSchedule) fields.push(`График оплаты: ${formData.individualAgreementPaymentSchedule}`)
-  if (formData.individualAgreementCurrency) {
-    const item = currencyOptions.value.find(item => item.CURRENCY === formData.individualAgreementCurrency)
-    fields.push(`Валюта: ${item ? item.FULL_NAME : formData.individualAgreementCurrency}`)
-  }
-  if (formData.individualAgreementPricing) fields.push(`Ценообразование: ${formData.individualAgreementPricing}`)
-  if (formData.individualAgreementAdditional) fields.push(`Дополнительно: ${formData.individualAgreementAdditional}`)
-}
-  // Оригинальные обработчики для других объектов...
-  else if (formData.object === '16937') {
-    fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.counterpartyType)}`)
-  } else if (formData.object === '16939') { // Партнеры
-    fields.push(`Вид партнера: ${getPartnerTypeTitle(formData.partnerType)}`)
-  }
-
-  if (formData.comment) {
-    fields.push(`Комментарий: ${formData.comment}`)
-  }
-  
-  // Добавляем поля в зависимости от объекта НСИ и типа заявки
-  if (formData.object === '16937') { // Контрагенты
-    if (formData.type === '16931') { // Добавление
-      fields.push(`ИНН: ${formData.inn}`)
-      fields.push(`Наименование: ${formData.name}`)
-      fields.push(`Сокр. наименование: ${formData.shortName}`)
-      
-      if (formData.kpp) fields.push(`КПП: ${formData.kpp}`)
-      if (formData.ogrn) fields.push(`ОГРН: ${formData.ogrn}`)
-      if (formData.ogrnip) fields.push(`ОГРНИП: ${formData.ogrnip}`)
-      if (formData.okpo) fields.push(`ОКПО: ${formData.okpo}`)
-      if (formData.headInn) fields.push(`ИНН Головного к/а: ${formData.headInn}`)
-      if (formData.headCounterparty) fields.push(`Головной контрагент: ${formData.headCounterparty}`)
-      if (formData.identityDocument) fields.push(`Документ удост. личность: ${formData.identityDocument}`)
-      if (formData.registrationCountry) fields.push(`Страна регистрации: ${formData.registrationCountry}`)
-      if (formData.registrationNumber) fields.push(`Рег. номер: ${formData.registrationNumber}`)
-      if (formData.taxNumber) fields.push(`Налоговый номер: ${formData.taxNumber}`)
-      
-      fields.push(`Юридический адрес: ${formData.legalAddress}`)
-      if (formData.actualAddress) fields.push(`Фактический адрес: ${formData.actualAddress}`)
-      if (formData.phone) fields.push(`Телефон: ${formData.phone}`)
-      if (formData.email) fields.push(`Электронная почта: ${formData.email}`)
-      if (formData.contactPerson) fields.push(`Контактное лицо: ${formData.contactPerson}`)
-      fields.push(`Партнер: ${formData.partner}`)
-    } else if (formData.type === '16933') { // Изменение
-      fields.push(`ИНН: ${formData.inn}`)
-      fields.push(`Наименование: ${formData.name}`)
-      fields.push(`Партнер: ${formData.partner || 'Не указан'}`)
-      
-      if (formData.actualAddress) fields.push(`Фактический адрес: ${formData.actualAddress}`)
-      if (formData.legalAddress) fields.push(`Юридический адрес: ${formData.legalAddress}`)
-    } else if (formData.type === '16935') { // Ошибка
-      fields.push(`Описание ошибки: ${formData.errorDescription}`)
-      fields.push(`Файлы приложены: ${formData.hasFile && formData.hasFile.length > 0 ? 'Да' : 'Нет'}`)
-    }
-  } else if (formData.object === '16939') { // Партнеры
-    if (formData.type === '16931') { // Добавление
-      fields.push(`Наименование: ${formData.name}`)
-      
-      if (formData.birthDate) fields.push(`Дата рождения: ${formData.birthDate}`)
-      if (formData.gender) fields.push(`Пол: ${formData.gender === 'male' ? 'Мужской' : 'Женский'}`)
-      
-      if (formData.phone) fields.push(`Телефон: ${formData.phone}`)
-      if (formData.additionalPhones && formData.additionalPhones.length > 0) {
-        formData.additionalPhones.forEach((phone, index) => {
-          if (phone) fields.push(`Телефон ${index + 2}: ${phone}`)
-        })
-      }
-      
-      if (formData.email) fields.push(`Электронная почта: ${formData.email}`)
-      if (formData.additionalEmails && formData.additionalEmails.length > 0) {
-        formData.additionalEmails.forEach((email, index) => {
-          if (email) fields.push(`Email ${index + 2}: ${email}`)
-        })
-      }
-      
-      if (formData.businessRegion && formData.businessRegion.length > 0) {
-        const regions = formData.businessRegion.map(region => {
-          const item = businessRegionOptions.value.find(item => item.id === region)
-          return item ? item.title : region
-        }).join(', ')
-        fields.push(`Бизнес-регион: ${regions}`)
-      }
-      
-      if (formData.relationshipType && formData.relationshipType.length > 0) {
-        const relationships = formData.relationshipType.map(rel => {
-          const item = relationshipTypeOptions.value.find(item => item.id === rel)
-          return item ? item.title : rel
-        }).join(', ')
-        fields.push(`Тип отношений: ${relationships}`)
-      }
-      
-      if (formData.legalAddress) fields.push(`Юридический адрес: ${formData.legalAddress}`)
-      if (formData.actualAddress) fields.push(`Фактический адрес: ${formData.actualAddress}`)
-      
-      if (formData.categoryB2) {
-        const item = categoryB2Options.value.find(item => item.id === formData.categoryB2)
-        fields.push(`Категория B2: ${item ? item.title : formData.categoryB2}`)
-      }
-      
-      if (formData.categoryCA) {
-        const item = categoryCAOptions.value.find(item => item.id === formData.categoryCA)
-        fields.push(`Категория СА: ${item ? item.title : formData.categoryCA}`)
-      }
-      
-      if (formData.ckg) {
-        const item = ckgOptions.value.find(item => item.id === formData.ckg)
-        fields.push(`ЦКГ: ${item ? item.title : formData.ckg}`)
-      }
-      
-      if (formData.ckgB2B) {
-        const item = ckgB2BOptions.value.find(item => item.id === formData.ckgB2B)
-        fields.push(`ЦКГ B2B: ${item ? item.title : formData.ckgB2B}`)
-      }
-      
-      fields.push(`Партнер: ${formData.partner}`)
-      
-      if (formData.isNonResident) {
-        fields.push(`Юридическое лицо нерезидент: Да`)
-        if (formData.registrationCountry) fields.push(`Страна регистрации: ${formData.registrationCountry}`)
-        if (formData.registrationNumber) fields.push(`Рег. номер: ${formData.registrationNumber}`)
-        if (formData.taxNumber) fields.push(`Налоговый номер: ${formData.taxNumber}`)
-      }
-    } else if (formData.type === '16933') { // Изменение
-      fields.push(`Партнер: ${formData.partner}`)
-      
-      if (formData.name) fields.push(`Наименование: ${formData.name}`)
-      if (formData.phone) fields.push(`Телефон: ${formData.phone}`)
-      if (formData.email) fields.push(`Электронная почта: ${formData.email}`)
-      if (formData.legalAddress) fields.push(`Юридический адрес: ${formData.legalAddress}`)
-      if (formData.actualAddress) fields.push(`Фактический адрес: ${formData.actualAddress}`)
-    } else if (formData.type === '16935') { // Ошибка
-      fields.push(`Описание ошибки: ${formData.errorDescription}`)
-      fields.push(`Файлы приложены: ${formData.hasFile && formData.hasFile.length > 0 ? 'Да' : 'Нет'}`)
-    }
-  }
-  if (formData.object === '16943') {
-    if (formData.contractPurpose) {
-      const item = contractPurposeOptions.value.find(item => item.id === formData.contractPurpose)
-      fields.push(`Цель договора: ${item ? item.title : formData.contractPurpose}`)
-    }
-    if (formData.contractNumber) fields.push(`Номер договора: ${formData.contractNumber}`)
-    if (formData.contractDate) fields.push(`Дата договора: ${formData.contractDate}`)
-    if (formData.contractPeriodFrom) fields.push(`Период действия с: ${formData.contractPeriodFrom}`)
-    if (formData.contractPeriodTo) fields.push(`Период действия по: ${formData.contractPeriodTo}`)
-    if (formData.contractName) fields.push(`Наименование договора: ${formData.contractName}`)
-    if (formData.department) fields.push(`Подразделение: ${formData.department}`)
-    if (formData.organizationInn) fields.push(`Организация ИНН: ${formData.organizationInn}`)
-    if (formData.organization) {
-      const item = organizationOptions.value.find(item => item.id === formData.organization)
-      fields.push(`Организация: ${item ? item.title : formData.organization}`)
-    }
-    if (formData.organizationAccount) fields.push(`Счет организации: ${formData.organizationAccount}`)
-    if (formData.counterpartyInn) fields.push(`Контрагент ИНН: ${formData.counterpartyInn}`)
-    if (formData.partner) fields.push(`Партнер: ${formData.partner}`)
-    if (formData.paymentDetails) {
-      const item = paymentDetailsOptions.value.find(item => item.id === formData.paymentDetails)
-      fields.push(`Детализация расчётов: ${item ? item.title : formData.paymentDetails}`)
-    }
-    if (formData.currency) {
-      const item = currencyOptions.value.find(item => item.id === formData.currency)
-      fields.push(`Валюта: ${item ? item.title : formData.currency}`)
-    }
-    fields.push(`Оплата в иностранной валюте: ${formData.foreignCurrencyPayment ? 'Да' : 'Нет'}`)
-    fields.push(`Сумма договора фиксирована: ${formData.fixedContractAmount ? 'Да' : 'Нет'}`)
-    fields.push(`Разрешена работа с дочерними партнерами: ${formData.allowSubsidiaryPartners ? 'Да' : 'Нет'}`)
-    if (formData.labeledProducts) {
-      const item = labeledProductsOptions.value.find(item => item.id === formData.labeledProducts)
-      fields.push(`Маркируемая продукция: ${item ? item.title : formData.labeledProducts}`)
-    }
-    fields.push(`Запрещать отгрузку: ${formData.prohibitShipment ? 'Да' : 'Нет'}`)
-    fields.push(`Не отгружать при сумме задолженности: ${formData.dontShipOnDebt ? 'Да' : 'Нет'}`)
-    if (formData.debtAmount) fields.push(`Сумма задолженности: ${formData.debtAmount}`)
-    if (formData.vatRate) {
-      const item = vatRateOptions.value.find(item => item.id === formData.vatRate)
-      fields.push(`Ставка НДС: ${item ? item.title : formData.vatRate}`)
-    }
-    if (formData.financialGroup) {
-      const item = financialGroupOptions.value.find(item => item.id === formData.financialGroup)
-      fields.push(`Группа фин. учета: ${item ? item.title : formData.financialGroup}`)
-    }
-    if (formData.ddsArticle) {
-      const item = ddsArticleOptions.value.find(item => item.id === formData.ddsArticle)
-      fields.push(`Статья ДДС: ${item ? item.title : formData.ddsArticle}`)
-    }
-    if (formData.debtClassification) {
-      const item = debtClassificationOptions.value.find(item => item.id === formData.debtClassification)
-      fields.push(`Классификация задолженности: ${item ? item.title : formData.debtClassification}`)
-    }
-    if (formData.vatDeclarationOperation) {
-      const item = vatDeclarationOperationOptions.value.find(item => item.id === formData.vatDeclarationOperation)
-      fields.push(`Операция декларации по НДС: ${item ? item.title : formData.vatDeclarationOperation}`)
-    }
-  }
-  
-  // Добавляем поля для Банковских счетов
-  else if (formData.object === '16941') {
-    if (formData.bankAccountStatus) {
-      const item = bankAccountStatusOptions.value.find(item => item.id === formData.bankAccountStatus)
-      fields.push(`Статус: ${item ? item.title : formData.bankAccountStatus}`)
-    }
-    if (formData.counterpartyInn) fields.push(`Контрагент ИНН: ${formData.counterpartyInn}`)
-    if (formData.counterparty) fields.push(`Контрагент: ${formData.counterparty}`)
-    if (formData.bankType) {
-      const item = bankTypeOptions.value.find(item => item.id === formData.bankType)
-      fields.push(`Вид банка: ${item ? item.title : formData.bankType}`)
+    
+    if (formData.complexForeignCurrencyPayment) fields.push(`Оплата в иностранной валюте: Да`)
+    if (formData.complexFixedContractAmount) fields.push(`Сумма договора фиксирована: Да`)
+    if (formData.complexAllowSubsidiaryPartners) fields.push(`Разрешена работа с дочерними партнерами: Да`)
+    
+    if (formData.complexLabeledProducts) {
+      const item = labeledProductsOptions.value.find(item => item.id === formData.complexLabeledProducts)
+      fields.push(`Маркируемая продукция: ${item ? item.title : formData.complexLabeledProducts}`)
     }
     
-    if (formData.bankType === 'national') {
-      if (formData.bik) fields.push(`БИК: ${formData.bik}`)
-      if (formData.bankName) fields.push(`Наименование банка: ${formData.bankName}`)
-      if (formData.currency) {
-        const item = currencyOptions.value.find(item => item.id === formData.currency)
-        fields.push(`Валюта: ${item ? item.title : formData.currency}`)
-      }
-      if (formData.accountNumber) fields.push(`Расчетный счет: ${formData.accountNumber}`)
-      if (formData.correspondentAccount) fields.push(`Корреспондентский счет: ${formData.correspondentAccount}`)
-    } else if (formData.bankType === 'international') {
-      if (formData.swift) fields.push(`SWIFT: ${formData.swift}`)
-      if (formData.bankName) fields.push(`Наименование банка: ${formData.bankName}`)
-      if (formData.bankRegistrationCity) fields.push(`Страна регистрации и город: ${formData.bankRegistrationCity}`)
-      if (formData.bankAddress) fields.push(`Адрес банка: ${formData.bankAddress}`)
-      if (formData.currency) {
-        const item = currencyOptions.value.find(item => item.id === formData.currency)
-        fields.push(`Валюта: ${item ? item.title : formData.currency}`)
-      }
-      if (formData.accountNumber) fields.push(`Расчетный счет: ${formData.accountNumber}`)
-      if (formData.correspondentAccount) fields.push(`Корреспондентский счет: ${formData.correspondentAccount}`)
-    }
-  } else if (formData.object === '16947') { // Упаковки
-
-    if (formData.nomenclature) fields.push(`Номенклатура: ${formData.nomenclature}`)
+    if (formData.complexProhibitShipment) fields.push(`Запрещать отгрузку: Да`)
+    if (formData.complexDontShipOnDebt) fields.push(`Не отгружать при сумме задолженности: Да`)
+    if (formData.complexDebtAmount) fields.push(`Сумма задолженности: ${formData.complexDebtAmount}`)
     
-    if (formData.nomenclatureCodes && formData.nomenclatureCodes.length > 0) {
-      const codes = formData.nomenclatureCodes.map(code => {
-        const item = nomenclatureCodeOptions.value.find(item => item.id === code)
-        return item ? item.title : code
+    if (formData.complexVatRate) {
+      const item = vatRateOptions.value.find(item => item.id === formData.complexVatRate)
+      fields.push(`Ставка НДС: ${item ? item.title : formData.complexVatRate}`)
+    }
+    
+    if (formData.complexFinancialGroup) {
+      const item = financialGroupOptions.value.find(item => item.id === formData.complexFinancialGroup)
+      fields.push(`Группа фин. учета: ${item ? item.title : formData.complexFinancialGroup}`)
+    }
+    
+    if (formData.complexDdsArticle) {
+      const item = ddsArticleOptions.value.find(item => item.id === formData.complexDdsArticle)
+      fields.push(`Статья ДДС: ${item ? item.title : formData.complexDdsArticle}`)
+    }
+    
+    if (formData.complexDebtClassification) {
+      const item = debtClassificationOptions.value.find(item => item.id === formData.complexDebtClassification)
+      fields.push(`Классификация задолженности: ${item ? item.title : formData.complexDebtClassification}`)
+    }
+    
+    if (formData.complexVatDeclarationOperation) {
+      const item = vatDeclarationOperationOptions.value.find(item => item.id === formData.complexVatDeclarationOperation)
+      fields.push(`Операция декларации по НДС: ${item ? item.title : formData.complexVatDeclarationOperation}`)
+    }
+  }
+  
+  // Поля для объекта "Партнер/Контрагент/Договор" (17959)
+  else if (formData.object === '17959') {
+    fields.push('\n=== ДАННЫЕ ПАРТНЕРА ===')
+    fields.push(`Вид партнера: ${getPartnerTypeTitle(formData.combinedPartnerType)}`)
+    
+    if (formData.combinedPartnerName) fields.push(`Наименование: ${formData.combinedPartnerName}`)
+    
+    // Телефоны
+    if (formData.combinedPhone) {
+      fields.push(`Телефон: ${formData.combinedPhone}`)
+    }
+    if (formData.combinedAdditionalPhones && formData.combinedAdditionalPhones.length > 0) {
+      formData.combinedAdditionalPhones.forEach((phone, index) => {
+        if (phone) fields.push(`Телефон ${index + 2}: ${phone}`)
+      })
+    }
+    
+    // Emails
+    if (formData.combinedEmail) {
+      fields.push(`Электронная почта: ${formData.combinedEmail}`)
+    }
+    if (formData.combinedAdditionalEmails && formData.combinedAdditionalEmails.length > 0) {
+      formData.combinedAdditionalEmails.forEach((email, index) => {
+        if (email) fields.push(`Email ${index + 2}: ${email}`)
+      })
+    }
+    
+    if (formData.combinedBusinessRegion && formData.combinedBusinessRegion.length > 0) {
+      const regions = formData.combinedBusinessRegion.map(id => {
+        const item = businessRegionOptions.value.find(item => item.id === id)
+        return item ? item.title : id
       }).join(', ')
-      fields.push(`Номенклатура код: ${codes}`)
+      fields.push(`Бизнес-регион: ${regions}`)
     }
     
-    if (formData.additionalInfo) fields.push(`Дополнительно: ${formData.additionalInfo}`)
-    if (formData.measurementUnit) fields.push(`Единица измерения: ${formData.measurementUnit}`)
-    if (formData.packageComposition) fields.push(`1 шт упаковки состоит из: ${formData.packageComposition}`)
-    if (formData.weight) fields.push(`Вес: ${formData.weight}`)
-    if (formData.height) fields.push(`Высота, м: ${formData.height}`)
-    if (formData.width) fields.push(`Ширина, м: ${formData.width}`)
-    if (formData.depth) fields.push(`Глубина, м: ${formData.depth}`)
-    if (formData.volume) fields.push(`Объем: ${formData.volume}`)
-    if (formData.additionalInfoSecondary) fields.push(`Дополнительно: ${formData.additionalInfoSecondary}`)
-    
-    if (formData.type === '16933') { // Изменение
-      fields.push(`\n--- ДАННЫЕ ДЛЯ ИЗМЕНЕНИЯ ---`)
-      if (formData.partner) fields.push(`Партнер: ${formData.partner}`)
-      if (formData.warehouseCode) fields.push(`Склад (код): ${formData.warehouseCode}`)
-    } else if (formData.type === '16935') { // Ошибка
-      fields.push(`\n--- ОПИСАНИЕ ОШИБКИ ---`)
-      if (formData.errorDescription) fields.push(`Описание ошибки: ${formData.errorDescription}`)
-      fields.push(`Файлы приложены: ${formData.hasFile && formData.hasFile.length > 0 ? 'Да' : 'Нет'}`)
+    if (formData.combinedRelationshipType && formData.combinedRelationshipType.length > 0) {
+      const relationships = formData.combinedRelationshipType.map(id => {
+        const item = relationshipTypeOptions.value.find(item => item.id === id)
+        return item ? item.title : id
+      }).join(', ')
+      fields.push(`Тип отношений: ${relationships}`)
     }
     
-    // Общие поля
-    if (formData.hasFile && formData.hasFile.length > 0) {
-      const fileNames = formData.hasFile.map(file => file.name).join(', ')
-      fields.push(`\nПрикрепленные файлы: ${fileNames}`)
-    }
-  } else if (formData.object === '16959') { // Скидки
-
-    if (formData.discountNomenclatureCode) fields.push(`Номенклатура (код): ${formData.discountNomenclatureCode}`)
-    if (formData.discountNomenclatureName) fields.push(`Номенклатура (наименование): ${formData.discountNomenclatureName}`)
+    if (formData.combinedLegalAddress) fields.push(`Юридический адрес: ${formData.combinedLegalAddress}`)
+    if (formData.combinedActualAddress) fields.push(`Фактический адрес: ${formData.combinedActualAddress}`)
+    if (formData.combinedCopyAddress) fields.push(`Копировать адрес: Да`)
     
-    if (formData.discountMechanics) {
-      const item = discountMechanicsOptions.value.find(item => item.id === formData.discountMechanics)
-      fields.push(`Механика (вид цены, %, кол-во): ${item ? item.title : formData.discountMechanics}`)
+    if (formData.combinedCategoryB2) {
+      const item = categoryB2Options.value.find(item => item.id === formData.combinedCategoryB2)
+      fields.push(`Категория B2: ${item ? item.title : formData.combinedCategoryB2}`)
     }
     
-    if (formData.priceBeforeDiscount) fields.push(`Цена до акции: ${formData.priceBeforeDiscount}`)
-    if (formData.priceWithDiscount) fields.push(`Цена по акции: ${formData.priceWithDiscount}`)
-    if (formData.discountComment) fields.push(`Дополнительный комментарий: ${formData.discountComment}`)
-    
-    // Добавляем информацию о файлах
-    if (formData.hasFile && formData.hasFile.length > 0) {
-      const fileNames = formData.hasFile.map(file => file.name).join(', ')
-      fields.push(`\nПрикрепленные файлы: ${fileNames}`)
+    if (formData.combinedCategoryCA) {
+      const item = categoryCAOptions.value.find(item => item.id === formData.combinedCategoryCA)
+      fields.push(`Категория СА: ${item ? item.title : formData.combinedCategoryCA}`)
     }
     
-  } else if (formData.object === '16961') { // Цены
-
-    if (formData.priceNomenclatureCode) fields.push(`Номенклатура (код): ${formData.priceNomenclatureCode}`)
-    if (formData.priceNomenclatureName) fields.push(`Номенклатура (наименование): ${formData.priceNomenclatureName}`)
-    
-    if (formData.priceType) {
-      const item = priceTypeOptions.value.find(item => item.id === formData.priceType)
-      fields.push(`Вид цены: ${item ? item.title : formData.priceType}`)
+    if (formData.combinedCkg) {
+      const item = ckgOptions.value.find(item => item.id === formData.combinedCkg)
+      fields.push(`ЦКГ: ${item ? item.title : formData.combinedCkg}`)
     }
     
-    if (formData.priceBefore) fields.push(`Цена ДО: ${formData.priceBefore}`)
-    if (formData.priceAfter) fields.push(`Цена ПОСЛЕ: ${formData.priceAfter}`)
-    if (formData.priceComment) fields.push(`Дополнительный комментарий: ${formData.priceComment}`)
-    
-    // Добавляем информацию о файлах
-    if (formData.hasFile && formData.hasFile.length > 0) {
-      const fileNames = formData.hasFile.map(file => file.name).join(', ')
-      fields.push(`\nПрикрепленные файлы: ${fileNames}`)
+    if (formData.combinedCkgB2B) {
+      const item = ckgB2BOptions.value.find(item => item.id === formData.combinedCkgB2B)
+      fields.push(`ЦКГ B2B: ${item ? item.title : formData.combinedCkgB2B}`)
     }
-  } else if (formData.object === '16945') { // Склады
-  if (formData.warehouseType) {
-    const item = warehouseTypeOptions.value.find(item => item.id === formData.warehouseType)
-    fields.push(`Тип склада: ${item ? item.title : formData.warehouseType}`)
+    
+    // Данные контрагента для 17959
+    if (formData.combinedCounterpartyType) {
+      fields.push('\n=== ДАННЫЕ КОНТРАГЕНТА ===')
+      fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.combinedCounterpartyType)}`)
+      if (formData.combinedInn) fields.push(`ИНН: ${formData.combinedInn}`)
+      if (formData.combinedCounterpartyName) fields.push(`Наименование: ${formData.combinedCounterpartyName}`)
+      if (formData.combinedShortName) fields.push(`Сокр. наименование: ${formData.combinedShortName}`)
+      
+      if (['17941', '17943'].includes(formData.combinedCounterpartyType)) {
+        if (formData.combinedKpp) fields.push(`КПП: ${formData.combinedKpp}`)
+        if (formData.combinedOgrn) fields.push(`ОГРН: ${formData.combinedOgrn}`)
+        if (formData.combinedOkpo) fields.push(`ОКПО: ${formData.combinedOkpo}`)
+      }
+      
+      if (formData.combinedCounterpartyType === '17943') {
+        if (formData.combinedHeadInn) fields.push(`ИНН Головного контрагента: ${formData.combinedHeadInn}`)
+        if (formData.combinedHeadCounterparty) fields.push(`Головной контрагент: ${formData.combinedHeadCounterparty}`)
+      }
+      
+      if (formData.combinedCounterpartyType === '17945' && formData.combinedIdentityDocument) {
+        fields.push(`Документ удост. личность: ${formData.combinedIdentityDocument}`)
+      }
+      
+      if (formData.combinedCounterpartyType === '17947' && formData.combinedOgrnip) {
+        fields.push(`ОГРНИП: ${formData.combinedOgrnip}`)
+      }
+      
+      if (formData.combinedCounterpartyType === '17949') {
+        if (formData.combinedRegistrationCountry) fields.push(`Страна регистрации: ${formData.combinedRegistrationCountry}`)
+        if (formData.combinedRegistrationNumber) fields.push(`Рег. номер: ${formData.combinedRegistrationNumber}`)
+        if (formData.combinedTaxNumber) fields.push(`Налоговый номер: ${formData.combinedTaxNumber}`)
+      }
+      
+      if (formData.combinedCounterpartyLegalAddress) fields.push(`Юридический адрес: ${formData.combinedCounterpartyLegalAddress}`)
+      if (formData.combinedCounterpartyActualAddress) fields.push(`Фактический адрес: ${formData.combinedCounterpartyActualAddress}`)
+      if (formData.combinedCounterpartyPhone) fields.push(`Телефон: ${formData.combinedCounterpartyPhone}`)
+      if (formData.combinedCounterpartyEmail) fields.push(`Электронная почта: ${formData.combinedCounterpartyEmail}`)
+      if (formData.combinedContactPerson) fields.push(`Контактное лицо: ${formData.combinedContactPerson}`)
+    }
+    
+    // Данные договора для 17959
+    if (formData.combinedContractPurpose) {
+      fields.push('\n=== ДАННЫЕ ДОГОВОРА ===')
+      
+      const purposeItem = contractPurposeOptions.value.find(item => item.id === formData.combinedContractPurpose)
+      fields.push(`Цель договора: ${purposeItem ? purposeItem.title : formData.combinedContractPurpose}`)
+      
+      if (formData.combinedContractNumber) fields.push(`Номер договора: ${formData.combinedContractNumber}`)
+      if (formData.combinedContractDate) fields.push(`Дата договора: ${formData.combinedContractDate}`)
+      if (formData.combinedContractPeriodFrom) fields.push(`Период действия с: ${formData.combinedContractPeriodFrom}`)
+      if (formData.combinedContractPeriodTo) fields.push(`Период действия по: ${formData.combinedContractPeriodTo}`)
+      if (formData.combinedContractName) fields.push(`Наименование договора: ${formData.combinedContractName}`)
+      if (formData.combinedDepartment) fields.push(`Подразделение: ${formData.combinedDepartment}`)
+      
+      if (formData.combinedOrganization) {
+        const orgItem = organizationOptions.value.find(item => item.id === formData.combinedOrganization)
+        fields.push(`Организация: ${orgItem ? orgItem.title : formData.combinedOrganization}`)
+      }
+      
+      if (formData.combinedOrganizationInn) fields.push(`Организация ИНН: ${formData.combinedOrganizationInn}`)
+      if (formData.combinedOrganizationAccount) fields.push(`Счет организации: ${formData.combinedOrganizationAccount}`)
+      
+      if (formData.combinedPaymentDetails) {
+        const paymentItem = paymentDetailsOptions.value.find(item => item.id === formData.combinedPaymentDetails)
+        fields.push(`Детализация расчётов: ${paymentItem ? paymentItem.title : formData.combinedPaymentDetails}`)
+      }
+      
+      if (formData.combinedCurrency) {
+        const currencyItem = currencyOptions.value.find(item => item.CURRENCY === formData.combinedCurrency)
+        fields.push(`Валюта: ${currencyItem ? currencyItem.FULL_NAME : formData.combinedCurrency}`)
+      }
+      
+      if (formData.combinedForeignCurrencyPayment) fields.push(`Оплата в иностранной валюте: Да`)
+      if (formData.combinedFixedContractAmount) fields.push(`Сумма договора фиксирована: Да`)
+      if (formData.combinedAllowSubsidiaryPartners) fields.push(`Разрешена работа с дочерними партнерами: Да`)
+      
+      if (formData.combinedLabeledProducts) {
+        const labeledItem = labeledProductsOptions.value.find(item => item.id === formData.combinedLabeledProducts)
+        fields.push(`Маркируемая продукция: ${labeledItem ? labeledItem.title : formData.combinedLabeledProducts}`)
+      }
+      
+      if (formData.combinedProhibitShipment) fields.push(`Запрещать отгрузку: Да`)
+      if (formData.combinedDontShipOnDebt) fields.push(`Не отгружать при сумме задолженности: Да`)
+      if (formData.combinedDebtAmount) fields.push(`Сумма задолженности: ${formData.combinedDebtAmount}`)
+      
+      if (formData.combinedVatRate) {
+        const vatItem = vatRateOptions.value.find(item => item.id === formData.combinedVatRate)
+        fields.push(`Ставка НДС: ${vatItem ? vatItem.title : formData.combinedVatRate}`)
+      }
+      
+      if (formData.combinedFinancialGroup) {
+        const financeItem = financialGroupOptions.value.find(item => item.id === formData.combinedFinancialGroup)
+        fields.push(`Группа фин. учета: ${financeItem ? financeItem.title : formData.combinedFinancialGroup}`)
+      }
+      
+      if (formData.combinedDdsArticle) {
+        const ddsItem = ddsArticleOptions.value.find(item => item.id === formData.combinedDdsArticle)
+        fields.push(`Статья ДДС: ${ddsItem ? ddsItem.title : formData.combinedDdsArticle}`)
+      }
+      
+      if (formData.combinedDebtClassification) {
+        const debtItem = debtClassificationOptions.value.find(item => item.id === formData.combinedDebtClassification)
+        fields.push(`Классификация задолженности: ${debtItem ? debtItem.title : formData.combinedDebtClassification}`)
+      }
+      
+      if (formData.combinedVatDeclarationOperation) {
+        const vatOpItem = vatDeclarationOperationOptions.value.find(item => item.id === formData.combinedVatDeclarationOperation)
+        fields.push(`Операция декларации по НДС: ${vatOpItem ? vatOpItem.title : formData.combinedVatDeclarationOperation}`)
+      }
+    }
   }
-  if (formData.warehouseGroup) fields.push(`Группа складов: ${formData.warehouseGroup}`)
-  if (formData.warehouseName) fields.push(`Наименование склада: ${formData.warehouseName}`)
   
-  if (formData.priceSource) {
-    const item = priceSourceOptions.value.find(item => item.id === formData.priceSource)
-    fields.push(`Источник информации о ценах: ${item ? item.title : formData.priceSource}`)
+  // Поля для объекта "Партнер/Контрагент" (18003)
+  else if (formData.object === '18003') {
+    fields.push('\n=== ДАННЫЕ ПАРТНЕРА ===')
+    fields.push(`Вид партнера: ${getPartnerTypeTitle(formData.partnerCounterpartyPartnerType)}`)
+    
+    if (formData.partnerCounterpartyName) fields.push(`Наименование: ${formData.partnerCounterpartyName}`)
+    
+    // Телефоны
+    if (formData.partnerCounterpartyPhone) {
+      fields.push(`Телефон: ${formData.partnerCounterpartyPhone}`)
+    }
+    if (formData.partnerCounterpartyAdditionalPhones && formData.partnerCounterpartyAdditionalPhones.length > 0) {
+      formData.partnerCounterpartyAdditionalPhones.forEach((phone, index) => {
+        if (phone) fields.push(`Телефон ${index + 2}: ${phone}`)
+      })
+    }
+    
+    // Emails
+    if (formData.partnerCounterpartyEmail) {
+      fields.push(`Электронная почта: ${formData.partnerCounterpartyEmail}`)
+    }
+    if (formData.partnerCounterpartyAdditionalEmails && formData.partnerCounterpartyAdditionalEmails.length > 0) {
+      formData.partnerCounterpartyAdditionalEmails.forEach((email, index) => {
+        if (email) fields.push(`Email ${index + 2}: ${email}`)
+      })
+    }
+    
+    if (formData.partnerCounterpartyBusinessRegion && formData.partnerCounterpartyBusinessRegion.length > 0) {
+      const regions = formData.partnerCounterpartyBusinessRegion.map(id => {
+        const item = businessRegionOptions.value.find(item => item.id === id)
+        return item ? item.title : id
+      }).join(', ')
+      fields.push(`Бизнес-регион: ${regions}`)
+    }
+    
+    if (formData.partnerCounterpartyRelationshipType && formData.partnerCounterpartyRelationshipType.length > 0) {
+      const relationships = formData.partnerCounterpartyRelationshipType.map(id => {
+        const item = relationshipTypeOptions.value.find(item => item.id === id)
+        return item ? item.title : id
+      }).join(', ')
+      fields.push(`Тип отношений: ${relationships}`)
+    }
+    
+    if (formData.partnerCounterpartyLegalAddress) fields.push(`Юридический адрес: ${formData.partnerCounterpartyLegalAddress}`)
+    if (formData.partnerCounterpartyActualAddress) fields.push(`Фактический адрес: ${formData.partnerCounterpartyActualAddress}`)
+    if (formData.partnerCounterpartyCopyAddress) fields.push(`Копировать адрес: Да`)
+    
+    if (formData.partnerCounterpartyCategoryB2) {
+      const item = categoryB2Options.value.find(item => item.id === formData.partnerCounterpartyCategoryB2)
+      fields.push(`Категория B2: ${item ? item.title : formData.partnerCounterpartyCategoryB2}`)
+    }
+    
+    if (formData.partnerCounterpartyCategoryCA) {
+      const item = categoryCAOptions.value.find(item => item.id === formData.partnerCounterpartyCategoryCA)
+      fields.push(`Категория СА: ${item ? item.title : formData.partnerCounterpartyCategoryCA}`)
+    }
+    
+    if (formData.partnerCounterpartyCkg) {
+      const item = ckgOptions.value.find(item => item.id === formData.partnerCounterpartyCkg)
+      fields.push(`ЦКГ: ${item ? item.title : formData.partnerCounterpartyCkg}`)
+    }
+    
+    if (formData.partnerCounterpartyCkgB2B) {
+      const item = ckgB2BOptions.value.find(item => item.id === formData.partnerCounterpartyCkgB2B)
+      fields.push(`ЦКГ B2B: ${item ? item.title : formData.partnerCounterpartyCkgB2B}`)
+    }
+    
+    // Данные контрагента для 18003
+    if (formData.partnerCounterpartyCounterpartyType) {
+      fields.push('\n=== ДАННЫЕ КОНТРАГЕНТА ===')
+      fields.push(`Вид контрагента: ${getCounterpartyTypeTitle(formData.partnerCounterpartyCounterpartyType)}`)
+      if (formData.partnerCounterpartyInn) fields.push(`ИНН: ${formData.partnerCounterpartyInn}`)
+      if (formData.partnerCounterpartyCounterpartyName) fields.push(`Наименование: ${formData.partnerCounterpartyCounterpartyName}`)
+      if (formData.partnerCounterpartyShortName) fields.push(`Сокр. наименование: ${formData.partnerCounterpartyShortName}`)
+      
+      if (['17941', '17943'].includes(formData.partnerCounterpartyCounterpartyType)) {
+        if (formData.partnerCounterpartyKpp) fields.push(`КПП: ${formData.partnerCounterpartyKpp}`)
+        if (formData.partnerCounterpartyOgrn) fields.push(`ОГРН: ${formData.partnerCounterpartyOgrn}`)
+        if (formData.partnerCounterpartyOkpo) fields.push(`ОКПО: ${formData.partnerCounterpartyOkpo}`)
+      }
+      
+      if (formData.partnerCounterpartyCounterpartyType === '17943') {
+        if (formData.partnerCounterpartyHeadInn) fields.push(`ИНН Головного контрагента: ${formData.partnerCounterpartyHeadInn}`)
+        if (formData.partnerCounterpartyHeadCounterparty) fields.push(`Головной контрагент: ${formData.partnerCounterpartyHeadCounterparty}`)
+      }
+      
+      if (formData.partnerCounterpartyCounterpartyType === '17945' && formData.partnerCounterpartyIdentityDocument) {
+        fields.push(`Документ удост. личность: ${formData.partnerCounterpartyIdentityDocument}`)
+      }
+      
+      if (formData.partnerCounterpartyCounterpartyType === '17947' && formData.partnerCounterpartyOgrnip) {
+        fields.push(`ОГРНИП: ${formData.partnerCounterpartyOgrnip}`)
+      }
+      
+      if (formData.partnerCounterpartyCounterpartyType === '17949') {
+        if (formData.partnerCounterpartyRegistrationCountry) fields.push(`Страна регистрации: ${formData.partnerCounterpartyRegistrationCountry}`)
+        if (formData.partnerCounterpartyRegistrationNumber) fields.push(`Рег. номер: ${formData.partnerCounterpartyRegistrationNumber}`)
+        if (formData.partnerCounterpartyTaxNumber) fields.push(`Налоговый номер: ${formData.partnerCounterpartyTaxNumber}`)
+      }
+      
+      if (formData.partnerCounterpartyLegalAddress2) fields.push(`Юридический адрес: ${formData.partnerCounterpartyLegalAddress2}`)
+      if (formData.partnerCounterpartyActualAddress2) fields.push(`Фактический адрес: ${formData.partnerCounterpartyActualAddress2}`)
+      if (formData.partnerCounterpartyPhone2) fields.push(`Телефон: ${formData.partnerCounterpartyPhone2}`)
+      if (formData.partnerCounterpartyEmail2) fields.push(`Электронная почта: ${formData.partnerCounterpartyEmail2}`)
+      if (formData.partnerCounterpartyContactPerson) fields.push(`Контактное лицо: ${formData.partnerCounterpartyContactPerson}`)
+    }
   }
   
-  if (formData.accountingPriceType) fields.push(`Учетный вид цены: ${formData.accountingPriceType}`)
-  fields.push(`Контролировать свободные остатки: ${formData.controlFreeBalance ? 'Да' : 'Нет'}`)
-  fields.push(`Контролировать оперативные остатки: ${formData.controlOperationalBalance ? 'Да' : 'Нет'}`)
-  if (formData.department) fields.push(`Подразделение: ${formData.department}`)
-  if (formData.responsiblePerson) fields.push(`Ответственный (МОЛ): ${formData.responsiblePerson}`)
-  
-  if (formData.businessRegion) {
-    const item = businessRegionOptions.value.find(item => item.id === formData.businessRegion)
-    fields.push(`Бизнес-регион: ${item ? item.title : formData.businessRegion}`)
+  // Поля для ошибок/доработок (16935)
+  if (formData.type === '16935' && formData.errorDescription) {
+    fields.push('\n=== ОПИСАНИЕ ОШИБКИ ===')
+    fields.push(`Описание ошибки: ${formData.errorDescription}`)
   }
   
-  fields.push(`Ордерная схема: ${formData.orderScheme ? 'Да' : 'Нет'}`)
-  fields.push(`Ячейки: ${formData.hasCells ? 'Да' : 'Нет'}`)
-  if (formData.warehouseAddress) fields.push(`Адрес склада: ${formData.warehouseAddress}`)
-  if (formData.warehousePhone) fields.push(`Телефон склада: ${formData.warehousePhone}`)
-  if (formData.warehouseComment) fields.push(`Комментарий: ${formData.warehouseComment}`)
-  if (formData.warehouseCode) fields.push(`Склад (код): ${formData.warehouseCode}`)
-  if (formData.warehouseNameSecondary) fields.push(`Наименование склада (дополнительное): ${formData.warehouseNameSecondary}`)
-  
-  if (formData.type === '16933') { // Изменение
-    fields.push(`\n--- ДАННЫЕ ДЛЯ ИЗМЕНЕНИЯ ---`)
-    if (formData.partner) fields.push(`Партнер: ${formData.partner}`)
-  } else if (formData.type === '16935') { // Ошибка
-    fields.push(`\n--- ОПИСАНИЕ ОШИБКИ ---`)
-    if (formData.errorDescription) fields.push(`Описание ошибки: ${formData.errorDescription}`)
-    fields.push(`Файлы приложены: ${formData.hasFile && formData.hasFile.length > 0 ? 'Да' : 'Нет'}`)
-  }
-}
-  
-  // Добавляем информацию о файлах для всех типов заявок
+  // Информация о файлах
   if (formData.hasFile && formData.hasFile.length > 0) {
-    const fileNames = formData.hasFile.map(file => file.name).join(', ')
-    fields.push(`\nПрикрепленные файлы: ${fileNames}`)
+    fields.push('\n=== ФАЙЛЫ ===')
+    fields.push(`Количество файлов: ${formData.hasFile.length}`)
+  }
+  
+  if (formData.typicalAgreementBasisFile && formData.typicalAgreementBasisFile.length > 0) {
+    fields.push(`Файлы основания для типового соглашения: ${formData.typicalAgreementBasisFile.length}`)
+  }
+  
+  if (formData.individualAgreementBasisFile && formData.individualAgreementBasisFile.length > 0) {
+    fields.push(`Файлы основания для индивидуального соглашения: ${formData.individualAgreementBasisFile.length}`)
+  }
+  
+  if (formData.discountBasisFile && formData.discountBasisFile.length > 0) {
+    fields.push(`Файлы основания для скидки: ${formData.discountBasisFile.length}`)
+  }
+  
+  if (formData.priceBasisFile && formData.priceBasisFile.length > 0) {
+    fields.push(`Файлы основания для цены: ${formData.priceBasisFile.length}`)
+  }
+  
+  if (formData.complexHasFile && formData.complexHasFile.length > 0) {
+    fields.push(`Файлы для договора (17961): ${formData.complexHasFile.length}`)
+  }
+  
+  if (formData.combinedHasFile && formData.combinedHasFile.length > 0) {
+    fields.push(`Файлы для договора (17959): ${formData.combinedHasFile.length}`)
   }
   
   return fields.join('\n')
@@ -4745,7 +6739,12 @@ const addTimelineComment = async (itemId) => {
 
 // Загрузка опций из Bitrix при монтировании
 onMounted(async () => {
-  await loadBitrixOptions()
+  try {
+    await loadBitrixOptions()
+    isLoading.value = false;
+  } catch (error) {
+    console.error('Ошибка загрузки:', error)
+  }
 })
 
 const loadCurrencies = async() => {
@@ -4762,7 +6761,7 @@ const loadBitrixOptions = async () => {
       nsiObjectOptions.value = []
       return
     }
-    
+
     const fields = await getSmartProcessFields();
     updateOptionsFromBitrixFields(fields);
     loadCurrencies();
@@ -4890,126 +6889,6 @@ const createBitrixRequest = async () => {
         'ufCrm63_1765789339357': formData.object,
         'ufCrm63_1765184971082': getAllRequestFields() || '',
       }
-    }
-    
-    // Обработка комплексного объекта 17961
-    if (formData.object === '17961') {
-      fields.fields['ufCrm63_1766580111'] = formData.complexCounterpartyType
-      fields.fields['ufCrm63_1765788575689'] = formData.complexInn
-      fields.fields['ufCrm63_1765788575691'] = formData.complexName
-      fields.fields['ufCrm63_1765788575695'] = formData.complexLegalAddress
-      fields.fields['ufCrm63_1765788575699'] = formData.complexPhone
-      fields.fields['ufCrm63_1765788575701'] = formData.complexEmail
-      
-      // Поля договора
-      fields.fields['ufCrm63_1770000000001'] = formData.contractPurpose
-      fields.fields['ufCrm63_1770000000002'] = formData.contractNumber
-      fields.fields['ufCrm63_1770000000003'] = formData.contractDate
-      fields.fields['ufCrm63_1770000000004'] = formData.contractName
-      fields.fields['ufCrm63_1770000000005'] = formData.currency
-      
-    } else if (formData.object === '17959') {
-      // Поля партнера
-      fields.fields['ufCrm63_1766580113'] = formData.complexPartnerType
-      fields.fields['ufCrm63_1770000000011'] = formData.complexPartnerName
-      fields.fields['ufCrm63_1770000000012'] = formData.complexPartnerCode
-      fields.fields['ufCrm63_1770000000013'] = formData.complexPartnerPhone
-      fields.fields['ufCrm63_1770000000014'] = formData.complexPartnerEmail
-      
-      // Поля контрагента
-      fields.fields['ufCrm63_1770000000021'] = formData.complexCounterpartyType2
-      fields.fields['ufCrm63_1770000000022'] = formData.complexCounterpartyInn
-      fields.fields['ufCrm63_1770000000023'] = formData.complexCounterpartyName
-      fields.fields['ufCrm63_1770000000024'] = formData.complexCounterpartyLegalAddress
-      
-      // Поля договора
-      fields.fields['ufCrm63_1770000000031'] = formData.complexContractPurpose
-      fields.fields['ufCrm63_1770000000032'] = formData.complexContractNumber
-      fields.fields['ufCrm63_1770000000033'] = formData.complexContractDate
-      fields.fields['ufCrm63_1770000000034'] = formData.complexContractName
-      fields.fields['ufCrm63_1770000000035'] = formData.complexCurrency
-      
-    } else if (formData.object === '16937') { // Контрагенты
-      fields.fields['ufCrm63_1766580111'] = formData.counterpartyType // Вид контрагента
-      
-      if (formData.type === '16931') { // Добавление
-        fields.fields['ufCrm63_1765788575689'] = formData.inn // ИНН
-        fields.fields['ufCrm63_1765788575691'] = formData.name // Наименование
-        fields.fields['ufCrm63_1765788575693'] = formData.shortName // Сокр. наименование
-        fields.fields['ufCrm63_1765788575695'] = formData.legalAddress // Юридический адрес
-        fields.fields['ufCrm63_1765788575697'] = formData.actualAddress // Фактический адрес
-        fields.fields['ufCrm63_1765788575699'] = formData.phone // Телефон
-        fields.fields['ufCrm63_1765788575701'] = formData.email // Email
-        fields.fields['ufCrm63_1765788575703'] = formData.contactPerson // Контактное лицо
-        fields.fields['ufCrm63_1765788575705'] = formData.partner // Партнер
-        
-        // Поля в зависимости от вида контрагента
-        if (formData.counterpartyType === 'ЮЛ (Юридическое лицо)') { // ЮЛ
-          fields.fields['ufCrm63_1765788575711'] = formData.kpp // КПП
-          fields.fields['ufCrm63_1765788575713'] = formData.ogrn // ОГРН
-          fields.fields['ufCrm63_1765788575715'] = formData.okpo // ОКПО
-        } else if (formData.counterpartyType === 'ОПЮЛ (Обособленное подразделение юридического лица)') { // ОПЮЛ
-          fields.fields['ufCrm63_1765788575711'] = formData.kpp // КПП
-          fields.fields['ufCrm63_1765788575713'] = formData.ogrn // ОГРН
-          fields.fields['ufCrm63_1765788575717'] = formData.headInn // ИНН Головного к/а
-          fields.fields['ufCrm63_1765788575719'] = formData.headCounterparty // Головной контрагент
-        } else if (formData.counterpartyType === 'ФЛ (Физическое лицо)') { // ФЛ
-          fields.fields['ufCrm63_1765788575721'] = formData.identityDocument // Документ удост. личность
-        } else if (formData.counterpartyType === 'ИП (Индивидуальный предприниматель)') { // ИП
-          fields.fields['ufCrm63_1765788575723'] = formData.ogrnip // ОГРНИП
-        } else if (formData.counterpartyType === 'ЮЛН (Юридическое лицо нерезедент)') { // ЮЛН
-          fields.fields['ufCrm63_1765788575725'] = formData.registrationCountry // Страна регистрации
-          fields.fields['ufCrm63_1765788575727'] = formData.registrationNumber // Рег. номер
-          fields.fields['ufCrm63_1765788575729'] = formData.taxNumber // Налоговый номер
-        }
-      }
-    } else if (formData.object === '16939') { // Партнеры
-      fields.fields['ufCrm63_1766580113'] = formData.partnerType // Вид партнера
-      
-      if (formData.type === '16931') { // Добавление
-        fields.fields['ufCrm63_1765788575731'] = formData.name // Наименование
-        fields.fields['ufCrm63_1765788575735'] = formData.partner // Партнер
-
-        if (formData.partnerType === '16961') { // КП
-          fields.fields['ufCrm63_1765788575739'] = formData.phone // Телефон
-          fields.fields['ufCrm63_1765788575741'] = formData.email // Email
-          fields.fields['ufCrm63_1765788575743'] = formData.businessRegion ? formData.businessRegion.join(', ') : '' // Бизнес-регион
-          fields.fields['ufCrm63_1765788575745'] = formData.relationshipType ? formData.relationshipType.join(', ') : '' // Тип отношений
-          fields.fields['ufCrm63_1765788575747'] = formData.legalAddress // Юридический адрес
-          fields.fields['ufCrm63_1765788575749'] = formData.actualAddress // Фактический адрес
-          fields.fields['ufCrm63_1765788575751'] = formData.categoryB2 // Категория B2
-          fields.fields['ufCrm63_1765788575753'] = formData.categoryCA // Категория СА
-          fields.fields['ufCrm63_1765788575755'] = formData.ckg // ЦКГ
-          fields.fields['ufCrm63_1765788575757'] = formData.ckgB2B // ЦКГ B2B
-        } else if (formData.partnerType === '16963') { // ЧЛ
-          fields.fields['ufCrm63_1765788575759'] = formData.birthDate // Дата рождения
-          fields.fields['ufCrm63_1765788575761'] = formData.gender // Пол
-          fields.fields['ufCrm63_1765788575763'] = formData.phone // Телефон
-          fields.fields['ufCrm63_1765788575765'] = formData.email // Email
-          fields.fields['ufCrm63_1765788575767'] = formData.isNonResident ? 'Y' : 'N' // ЮЛН
-          
-          if (formData.isNonResident) {
-            fields.fields['ufCrm63_1765788575769'] = formData.registrationCountry // Страна регистрации
-            fields.fields['ufCrm63_1765788575771'] = formData.registrationNumber // Рег. номер
-            fields.fields['ufCrm63_1765788575773'] = formData.taxNumber // Налоговый номер
-          }
-        }
-      }
-    } else if (formData.object === '16959') { // Скидки
-      fields.fields['ufCrm63_1765788580001'] = formData.discountNomenclatureCode
-      fields.fields['ufCrm63_1765788580002'] = formData.discountNomenclatureName
-      fields.fields['ufCrm63_1765788580003'] = formData.discountMechanics
-      fields.fields['ufCrm63_1765788580004'] = formData.priceBeforeDiscount
-      fields.fields['ufCrm63_1765788580005'] = formData.priceWithDiscount
-      fields.fields['ufCrm63_1765788580006'] = formData.discountComment
-      
-    } else if (formData.object === '16961') { // Цены
-      fields.fields['ufCrm63_1765788581001'] = formData.priceNomenclatureCode
-      fields.fields['ufCrm63_1765788581002'] = formData.priceNomenclatureName
-      fields.fields['ufCrm63_1765788581003'] = formData.priceType
-      fields.fields['ufCrm63_1765788581004'] = formData.priceBefore
-      fields.fields['ufCrm63_1765788581005'] = formData.priceAfter
-      fields.fields['ufCrm63_1765788581006'] = formData.priceComment
     }
     
     // Обработка файлов для всех типов заявок
