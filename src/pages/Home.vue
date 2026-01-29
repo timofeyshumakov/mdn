@@ -427,7 +427,16 @@
                             counter
                             class="mb-4"
                           ></v-text-field>
-                          
+                          <v-text-field
+                            v-model="formData.partnerCode"
+                            label="Партнер (код)"
+                            placeholder="Введите код партнера..."
+                            :rules="[v => !!v || 'Код партнера обязателен']"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
                           <!-- Вид контрагента -->
                           <v-autocomplete
                             v-model="formData.counterpartyType"
@@ -1145,7 +1154,7 @@
                       <v-text-field
                         v-model="formData.typicalAgreementDepartment"
                         label="Подразделение"
-                        placeholder="Укажите: подразделение инициатора"
+                        placeholder="Укажите: Ответственное подразделение"
                         :maxlength="150"
                         variant="outlined"
                         counter
@@ -1470,7 +1479,7 @@
                       <v-text-field
                         v-model="formData.department"
                         label="Подразделение"
-                        placeholder="Укажите: подразделение инициатора"
+                        placeholder="Укажите: Ответственное подразделение"
                         :maxlength="50"
                         variant="outlined"
                         counter
@@ -1549,7 +1558,16 @@
                         counter
                         class="mb-4"
                       ></v-text-field>
-                      
+                          <v-text-field
+                            v-model="formData.partnerCode"
+                            label="Партнер (код)"
+                            placeholder="Введите код партнера..."
+                            :rules="[v => !!v || 'Код партнера обязателен']"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
                       <!-- Детализация расчётов -->
                       <v-autocomplete
                         v-model="formData.paymentDetails"
@@ -1787,7 +1805,7 @@
                       <v-text-field
                         v-model="formData.department"
                         label="Подразделение"
-                        placeholder="Укажите: подразделение инициатора"
+                        placeholder="Укажите: Ответственное подразделение"
                         :maxlength="50"
                         variant="outlined"
                         counter
@@ -2236,7 +2254,7 @@
                       <v-text-field
                         v-model="formData.priceDepartment"
                         label="Подразделение"
-                        placeholder="Укажите: подразделение инициатора"
+                        placeholder="Укажите: Ответственное подразделение"
                         :maxlength="50"
                         variant="outlined"
                         counter
@@ -2820,7 +2838,16 @@
         counter
         class="mb-4"
       ></v-text-field>
-      
+                          <v-text-field
+                            v-model="formData.partnerCode"
+                            label="Партнер (код)"
+                            placeholder="Введите код партнера..."
+                            :rules="[v => !!v || 'Код партнера обязателен']"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
       <!-- Телефон (множественное) -->
       <div class="mb-4">
         <div class="d-flex align-center mb-2">
@@ -3665,7 +3692,16 @@
         counter
         class="mb-4"
       ></v-text-field>
-      
+                          <v-text-field
+                            v-model="formData.partnerCode"
+                            label="Партнер (код)"
+                            placeholder="Введите код партнера..."
+                            :rules="[v => !!v || 'Код партнера обязателен']"
+                            :maxlength="20"
+                            variant="outlined"
+                            counter
+                            class="mb-4"
+                          ></v-text-field>
       <!-- Телефон (множественное) -->
       <div class="mb-4">
         <div class="d-flex align-center mb-2">
