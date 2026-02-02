@@ -2838,16 +2838,6 @@
         counter
         class="mb-4"
       ></v-text-field>
-                          <v-text-field
-                            v-model="formData.partnerCode"
-                            label="Партнер (код)"
-                            placeholder="Введите код партнера..."
-                            :rules="[v => !!v || 'Код партнера обязателен']"
-                            :maxlength="20"
-                            variant="outlined"
-                            counter
-                            class="mb-4"
-                          ></v-text-field>
       <!-- Телефон (множественное) -->
       <div class="mb-4">
         <div class="d-flex align-center mb-2">
@@ -3390,6 +3380,123 @@
       counter
       class="mb-4"
     ></v-text-field>
+    <!-- Вид банка -->
+  <v-autocomplete
+    v-model="formData.combinedBankType"
+    :items="bankTypeOptions"
+    label="Вид банка"
+    placeholder="Выберите вид банка"
+    :rules="[v => !!v || 'Вид банка обязателен']"
+    item-title="title"
+    item-value="id"
+    variant="outlined"
+    required
+    class="mb-4"
+    @update:model-value="handleCombinedBankTypeChange"
+  ></v-autocomplete>
+  
+  <!-- Для национального банка -->
+  <div v-if="formData.combinedBankType === 'national'">
+    <!-- БИК -->
+    <v-text-field
+      v-model="formData.combinedBik"
+      label="БИК"
+      placeholder="Введите БИК (9 цифр)"
+      :rules="bikRules"
+      :maxlength="9"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+  </div>
+  
+  <!-- Для международного банка -->
+  <div v-else-if="formData.combinedBankType === 'international'">
+    <!-- SWIFT -->
+    <v-text-field
+      v-model="formData.combinedSwift"
+      label="SWIFT"
+      placeholder="Введите SWIFT код (8-11 символов)"
+      :rules="swiftRules"
+      :maxlength="11"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Страна регистрации и город -->
+    <v-text-field
+      v-model="formData.combinedBankRegistrationCity"
+      label="Страна регистрации и город"
+      placeholder="Введите страну и город регистрации банка"
+      :rules="[v => !!v || 'Страна и город обязательны']"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Адрес -->
+    <v-text-field
+      v-model="formData.combinedBankAddress"
+      label="Адрес банка"
+      placeholder="Введите адрес банка"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+  </div>
+  
+  <!-- Наименование банка (общее для обоих типов) -->
+  <v-text-field
+    v-model="formData.combinedBankName"
+    label="Наименование банка"
+    placeholder="Введите наименование банка"
+    :rules="[v => !!v || 'Наименование банка обязательно']"
+    :maxlength="50"
+    variant="outlined"
+    counter
+    class="mb-4"
+  ></v-text-field>
+  
+  <!-- Валюта -->
+  <v-autocomplete
+    v-model="formData.combinedBankCurrency"
+    :items="currencyOptions"
+    label="Валюта"
+    placeholder="Выберите валюту счета"
+    :rules="[v => !!v || 'Валюта обязательна']"
+    item-title="title"
+    item-value="id"
+    variant="outlined"
+    required
+    class="mb-4"
+  ></v-autocomplete>
+  
+  <!-- Расчетный счет -->
+  <v-text-field
+    v-model="formData.combinedBankAccountNumber"
+    label="Расчетный счет"
+    placeholder="Введите расчетный счет (20 цифр)"
+    :rules="accountNumberRules"
+    :maxlength="20"
+    variant="outlined"
+    counter
+    class="mb-4"
+  ></v-text-field>
+  
+  <!-- Корреспондентский счет -->
+  <v-text-field
+    v-model="formData.combinedCorrespondentAccount"
+    label="Корреспондентский счет"
+    placeholder="Введите корреспондентский счет (20 цифр)"
+    :rules="correspondentAccountRules"
+    :maxlength="20"
+    variant="outlined"
+    counter
+    class="mb-6"
+  ></v-text-field>
   </div>
   
   <!-- Шаг 4: Данные договора -->
@@ -3692,16 +3799,6 @@
         counter
         class="mb-4"
       ></v-text-field>
-                          <v-text-field
-                            v-model="formData.partnerCode"
-                            label="Партнер (код)"
-                            placeholder="Введите код партнера..."
-                            :rules="[v => !!v || 'Код партнера обязателен']"
-                            :maxlength="20"
-                            variant="outlined"
-                            counter
-                            class="mb-4"
-                          ></v-text-field>
       <!-- Телефон (множественное) -->
       <div class="mb-4">
         <div class="d-flex align-center mb-2">
@@ -4245,6 +4342,123 @@
       counter
       class="mb-4"
     ></v-text-field>
+    <!-- Вид банка -->
+  <v-autocomplete
+    v-model="formData.partnerCounterpartyBankType"
+    :items="bankTypeOptions"
+    label="Вид банка"
+    placeholder="Выберите вид банка"
+    :rules="[v => !!v || 'Вид банка обязателен']"
+    item-title="title"
+    item-value="id"
+    variant="outlined"
+    required
+    class="mb-4"
+    @update:model-value="handlePartnerCounterpartyBankTypeChange"
+  ></v-autocomplete>
+  
+  <!-- Для национального банка -->
+  <div v-if="formData.partnerCounterpartyBankType === 'national'">
+    <!-- БИК -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyBik"
+      label="БИК"
+      placeholder="Введите БИК (9 цифр)"
+      :rules="bikRules"
+      :maxlength="9"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+  </div>
+  
+  <!-- Для международного банка -->
+  <div v-else-if="formData.partnerCounterpartyBankType === 'international'">
+    <!-- SWIFT -->
+    <v-text-field
+      v-model="formData.partnerCounterpartySwift"
+      label="SWIFT"
+      placeholder="Введите SWIFT код (8-11 символов)"
+      :rules="swiftRules"
+      :maxlength="11"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Страна регистрации и город -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyBankRegistrationCity"
+      label="Страна регистрации и город"
+      placeholder="Введите страну и город регистрации банка"
+      :rules="[v => !!v || 'Страна и город обязательны']"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+    
+    <!-- Адрес -->
+    <v-text-field
+      v-model="formData.partnerCounterpartyBankAddress"
+      label="Адрес банка"
+      placeholder="Введите адрес банка"
+      :maxlength="50"
+      variant="outlined"
+      counter
+      class="mb-4"
+    ></v-text-field>
+  </div>
+  
+  <!-- Наименование банка (общее для обоих типов) -->
+  <v-text-field
+    v-model="formData.partnerCounterpartyBankName"
+    label="Наименование банка"
+    placeholder="Введите наименование банка"
+    :rules="[v => !!v || 'Наименование банка обязательно']"
+    :maxlength="50"
+    variant="outlined"
+    counter
+    class="mb-4"
+  ></v-text-field>
+  
+  <!-- Валюта -->
+  <v-autocomplete
+    v-model="formData.partnerCounterpartyBankCurrency"
+    :items="currencyOptions"
+    label="Валюта"
+    placeholder="Выберите валюту счета"
+    :rules="[v => !!v || 'Валюта обязательна']"
+    item-title="title"
+    item-value="id"
+    variant="outlined"
+    required
+    class="mb-4"
+  ></v-autocomplete>
+  
+  <!-- Расчетный счет -->
+  <v-text-field
+    v-model="formData.partnerCounterpartyBankAccountNumber"
+    label="Расчетный счет"
+    placeholder="Введите расчетный счет (20 цифр)"
+    :rules="accountNumberRules"
+    :maxlength="20"
+    variant="outlined"
+    counter
+    class="mb-4"
+  ></v-text-field>
+  
+  <!-- Корреспондентский счет -->
+  <v-text-field
+    v-model="formData.partnerCounterpartyCorrespondentAccount"
+    label="Корреспондентский счет"
+    placeholder="Введите корреспондентский счет (20 цифр)"
+    :rules="correspondentAccountRules"
+    :maxlength="20"
+    variant="outlined"
+    counter
+    class="mb-6"
+  ></v-text-field>
   </div>
 </div>
                   <!-- Поля для других объектов НСИ -->
@@ -4650,7 +4864,15 @@ const formData = reactive({
   combinedDebtClassification: '',
   combinedVatDeclarationOperation: '',
   combinedHasFile: null,
-  
+  combinedBankType: '',
+  combinedBik: '',
+  combinedSwift: '',
+  combinedBankName: '',
+  combinedBankRegistrationCity: '',
+  combinedBankAddress: '',
+  combinedBankCurrency: '',
+  combinedBankAccountNumber: '',
+  combinedCorrespondentAccount: '',
   // Поля для объекта "Партнер/Контрагент" (18003)
   partnerCounterpartyPartnerType: null,
   partnerCounterpartyName: '',
@@ -4686,7 +4908,15 @@ const formData = reactive({
   partnerCounterpartyPhone2: '',
   partnerCounterpartyEmail2: '',
   partnerCounterpartyContactPerson: '',
-  
+  partnerCounterpartyBankType: '',
+  partnerCounterpartyBik: '',
+  partnerCounterpartySwift: '',
+  partnerCounterpartyBankName: '',
+  partnerCounterpartyBankRegistrationCity: '',
+  partnerCounterpartyBankAddress: '',
+  partnerCounterpartyBankCurrency: '',
+  partnerCounterpartyBankAccountNumber: '',
+  partnerCounterpartyCorrespondentAccount: '',
   // Общие поля для файлов
   hasFile: null,
   
@@ -6517,6 +6747,43 @@ const getAllRequestFields = () => {
       if (formData.combinedCounterpartyPhone) fields.push(`Телефон: ${formData.combinedCounterpartyPhone}`)
       if (formData.combinedCounterpartyEmail) fields.push(`Электронная почта: ${formData.combinedCounterpartyEmail}`)
       if (formData.combinedContactPerson) fields.push(`Контактное лицо: ${formData.combinedContactPerson}`)
+
+      if (formData.combinedBankType) {
+        fields.push(`Вид банка: ${formData.combinedBankType === 'national' ? 'Национальный' : 'Международный'}`)
+      }
+
+      if (formData.combinedBankType === 'national' && formData.combinedBik) {
+        fields.push(`БИК: ${formData.combinedBik}`)
+      }
+
+      if (formData.combinedBankType === 'international' && formData.combinedSwift) {
+        fields.push(`SWIFT: ${formData.combinedSwift}`)
+      }
+
+      if (formData.combinedBankName) {
+        fields.push(`Наименование банка: ${formData.combinedBankName}`)
+      }
+
+      if (formData.combinedBankType === 'international' && formData.combinedBankRegistrationCity) {
+        fields.push(`Страна регистрации и город: ${formData.combinedBankRegistrationCity}`)
+      }
+
+      if (formData.combinedBankType === 'international' && formData.combinedBankAddress) {
+        fields.push(`Адрес банка: ${formData.combinedBankAddress}`)
+      }
+
+      if (formData.combinedBankCurrency) {
+        const currencyItem = currencyOptions.value.find(item => item.id === formData.combinedBankCurrency)
+        fields.push(`Валюта: ${currencyItem ? currencyItem.title : formData.combinedBankCurrency}`)
+      }
+
+      if (formData.combinedBankAccountNumber) {
+        fields.push(`Расчетный счет: ${formData.combinedBankAccountNumber}`)
+      }
+
+      if (formData.combinedCorrespondentAccount) {
+        fields.push(`Корреспондентский счет: ${formData.combinedCorrespondentAccount}`)
+      }
     }
     
     // Данные договора для 17959
@@ -6696,6 +6963,42 @@ const getAllRequestFields = () => {
       if (formData.partnerCounterpartyPhone2) fields.push(`Телефон: ${formData.partnerCounterpartyPhone2}`)
       if (formData.partnerCounterpartyEmail2) fields.push(`Электронная почта: ${formData.partnerCounterpartyEmail2}`)
       if (formData.partnerCounterpartyContactPerson) fields.push(`Контактное лицо: ${formData.partnerCounterpartyContactPerson}`)
+      if (formData.partnerCounterpartyBankType) {
+        fields.push(`Вид банка: ${formData.partnerCounterpartyBankType === 'national' ? 'Национальный' : 'Международный'}`)
+      }
+
+      if (formData.partnerCounterpartyBankType === 'national' && formData.partnerCounterpartyBik) {
+        fields.push(`БИК: ${formData.partnerCounterpartyBik}`)
+      }
+
+      if (formData.partnerCounterpartyBankType === 'international' && formData.partnerCounterpartySwift) {
+        fields.push(`SWIFT: ${formData.partnerCounterpartySwift}`)
+      }
+
+      if (formData.partnerCounterpartyBankName) {
+        fields.push(`Наименование банка: ${formData.partnerCounterpartyBankName}`)
+      }
+
+      if (formData.partnerCounterpartyBankType === 'international' && formData.partnerCounterpartyBankRegistrationCity) {
+        fields.push(`Страна регистрации и город: ${formData.partnerCounterpartyBankRegistrationCity}`)
+      }
+
+      if (formData.partnerCounterpartyBankType === 'international' && formData.partnerCounterpartyBankAddress) {
+        fields.push(`Адрес банка: ${formData.partnerCounterpartyBankAddress}`)
+      }
+
+      if (formData.partnerCounterpartyBankCurrency) {
+        const currencyItem = currencyOptions.value.find(item => item.id === formData.partnerCounterpartyBankCurrency)
+        fields.push(`Валюта: ${currencyItem ? currencyItem.title : formData.partnerCounterpartyBankCurrency}`)
+      }
+
+      if (formData.partnerCounterpartyBankAccountNumber) {
+        fields.push(`Расчетный счет: ${formData.partnerCounterpartyBankAccountNumber}`)
+      }
+
+      if (formData.partnerCounterpartyCorrespondentAccount) {
+        fields.push(`Корреспондентский счет: ${formData.partnerCounterpartyCorrespondentAccount}`)
+      }
     }
   }
   
