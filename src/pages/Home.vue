@@ -705,8 +705,7 @@
                   <div v-else-if="formData.object === '16939'">
                     <!-- Шаг 2: Данные партнера -->
                     <div v-if="stepData.stepNumber === 2">
-                      <!-- Поля для КП (компания) -->
-                      <div v-if="formData.partnerType === 'КП (компания)' || formData.partnerType === '16961'">
+                      <div v-if="formData.partnerType === 'КП (компания)' || formData.partnerType === 'ЧЛ (частное лицо)'">
                         <v-text-field
                           v-model="formData.name"
                           label="Наименование"
@@ -717,7 +716,19 @@
                           counter
                           class="mb-4"
                         ></v-text-field>
-                        
+                      </div>
+                        <div v-if="formData.partnerType === 'ЧЛ (частное лицо)'">
+                          <v-text-field
+                            v-model="formData.birthDate"
+                            label="Дата рождения"
+                            type="date"
+                            variant="outlined"
+                            :rules="formData.partnerType === 'ЧЛ (частное лицо)' ? [v => !!v || 'Дата рождения обязательна'] : []"
+                            class="mb-4"
+                          ></v-text-field>
+                        </div>
+                      <!-- Поля для КП (компания) -->
+                      <div v-if="formData.partnerType === 'КП (компания)' || formData.partnerType === 'ЧЛ (частное лицо)'">
                         <!-- Телефон (множественное) -->
                         <div class="mb-4">
                           <div class="d-flex align-center mb-2">
@@ -917,7 +928,14 @@
                           counter
                           class="mb-4"
                         ></v-text-field>
-                        
+                        <v-text-field
+                          v-model="formData.birthDate"
+                          label="Дата рождения"
+                          type="date"
+                          variant="outlined"
+                          required
+                          class="mb-4"
+                        ></v-text-field>
                         <!-- Телефон (множественное) -->
                         <div class="mb-4">
                           <div class="d-flex align-center mb-2">
@@ -2079,7 +2097,7 @@
                             color="secondary"
                             variant="outlined"
                             size="small"
-                            href="assets/discount_template.xlsx"
+                            href="assets/files/price_list.xlsx"
                             target="_blank"
                             prepend-icon="mdi-download"
                           >
@@ -2211,7 +2229,7 @@
                             color="secondary"
                             variant="outlined"
                             size="small"
-                            href="assets/price_template.xlsx"
+                            href="assets/files/discaunt.xlsx"
                             target="_blank"
                             prepend-icon="mdi-download"
                           >
@@ -3037,7 +3055,14 @@
         counter
         class="mb-4"
       ></v-text-field>
-      
+      <v-text-field
+        v-model="formData.combinedBirthDate"
+        label="Дата рождения"
+        type="date"
+        variant="outlined"
+        required
+        class="mb-4"
+      ></v-text-field>
       <!-- Телефон (множественное) -->
       <div class="mb-4">
         <div class="d-flex align-center mb-2">
@@ -3786,7 +3811,7 @@
       required
       class="mb-4"
     ></v-autocomplete>
-    
+
     <!-- Поля для КП (компания) -->
     <div v-if="formData.partnerCounterpartyPartnerType === '16961'">
       <v-text-field
@@ -3998,7 +4023,14 @@
         counter
         class="mb-4"
       ></v-text-field>
-      
+      <v-text-field
+        v-model="formData.partnerCounterpartyBirthDate"
+        label="Дата рождения"
+        type="date"
+        variant="outlined"
+        required
+        class="mb-4"
+      ></v-text-field>
       <!-- Телефон (множественное) -->
       <div class="mb-4">
         <div class="d-flex align-center mb-2">
@@ -4622,6 +4654,7 @@ const formData = reactive({
   
   // Поля для объекта "Партнеры" (16939)
   partnerType: null,
+  birthDate: '',
   businessRegion: [],
   relationshipType: [],
   categoryB2: '',
@@ -4806,6 +4839,7 @@ const formData = reactive({
   
   // Поля для объекта "Партнер/Контрагент/Договор" (17959)
   combinedPartnerType: null,
+  combinedBirthDate: '',
   combinedPartnerName: '',
   combinedPhone: '',
   combinedAdditionalPhones: [],
@@ -4874,6 +4908,7 @@ const formData = reactive({
   combinedBankAccountNumber: '',
   combinedCorrespondentAccount: '',
   // Поля для объекта "Партнер/Контрагент" (18003)
+  partnerCounterpartyBirthDate: '',
   partnerCounterpartyPartnerType: null,
   partnerCounterpartyName: '',
   partnerCounterpartyPhone: '',
