@@ -150,7 +150,7 @@
                     
                     <!-- Файлы -->
                     <v-file-input
-                      v-model="formData.hasFile"
+                      v-model="formData.file"
                       label="Файлы"
                       placeholder="Загрузите файлы или скриншоты для описания ошибки..."
                       multiple
@@ -396,7 +396,7 @@
                       <div v-if="stepData.stepNumber === 4">
                         <!-- Файлы -->
                         <v-file-input
-                          v-model="formData.hasFile"
+                          v-model="formData.file"
                           label="Файлы"
                           placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
                           multiple
@@ -686,7 +686,7 @@
                         <!-- Шаг 3: Файлы -->
                         <div v-if="stepData.stepNumber === 3">
                           <v-file-input
-                            v-model="formData.hasFile"
+                            v-model="formData.file"
                             label="Файлы"
                             placeholder="Прикрепите необходимые документы"
                             multiple
@@ -1088,7 +1088,7 @@
                     <!-- Шаг 3: Файлы -->
                     <div v-if="stepData.stepNumber === 3">
                       <v-file-input
-                        v-model="formData.hasFile"
+                        v-model="formData.file"
                         label="Файлы"
                         placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
                         multiple
@@ -1120,7 +1120,7 @@
                       ></v-text-field>
                       <!-- файл -->
                       <v-file-input
-                        v-model="formData.typicalAgreementBasisFile"
+                        v-model="formData.file"
                         label="Файлы"
                         placeholder="Прикрепите: файл-основание"
                         multiple
@@ -1252,7 +1252,7 @@
                       
                       <!-- Основание (файл) -->
                       <v-file-input
-                        v-model="formData.individualAgreementBasisFile"
+                        v-model="formData.file"
                         label="Файлы"
                         placeholder="Прикрепите: файл-основание"
                         multiple
@@ -1728,7 +1728,7 @@
                       
                       <!-- Файл -->
                       <v-file-input
-                        v-model="formData.hasFile"
+                        v-model="formData.file"
                         label="Файлы"
                         placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
                         multiple
@@ -1907,7 +1907,7 @@
                       
                       <!-- Файл -->
                       <v-file-input
-                        v-model="formData.hasFile"
+                        v-model="formData.file"
                         label="Файлы"
                         placeholder="Прикрепите: скан-копию с корректной информацией, печатями (если применимо)"
                         multiple
@@ -2084,7 +2084,7 @@
                       <v-row class="file">
                         <!-- Основание (файл) -->
                         <v-file-input
-                          v-model="formData.discountBasisFile"
+                          v-model="formData.file"
                           label="Файлы"
                           placeholder="Прикрепите: файл-основание"
                           multiple
@@ -2216,7 +2216,7 @@
                       <v-row class="file">
                         <!-- Основание (файл) -->
                         <v-file-input
-                          v-model="formData.priceBasisFile"
+                          v-model="formData.file"
                           label="Файлы"
                           placeholder="Прикрепите: файлы в формате excel по шаблону"
                           multiple
@@ -2812,7 +2812,7 @@
     
     <!-- Файлы -->
     <v-file-input
-      v-model="formData.complexHasFile"
+      v-model="formData.file"
       label="Файлы"
       placeholder="Прикрепите необходимые документы"
       multiple
@@ -3782,7 +3782,7 @@
     
     <!-- Файлы -->
     <v-file-input
-      v-model="formData.combinedHasFile"
+      v-model="formData.file"
       label="Файлы"
       placeholder="Прикрепите необходимые документы"
       multiple
@@ -4842,7 +4842,7 @@ const formData = reactive({
   complexDdsArticle: '',
   complexDebtClassification: '',
   complexVatDeclarationOperation: '',
-  complexHasFile: null,
+  complexFile: null,
   
   // Поля для объекта "Партнер/Контрагент/Договор" (17959)
   combinedPartnerType: null,
@@ -4904,7 +4904,7 @@ const formData = reactive({
   combinedDdsArticle: '',
   combinedDebtClassification: '',
   combinedVatDeclarationOperation: '',
-  combinedHasFile: null,
+  combinedfile: null,
   combinedBankType: '',
   combinedBik: '',
   combinedSwift: '',
@@ -4960,7 +4960,7 @@ const formData = reactive({
   partnerCounterpartyBankAccountNumber: '',
   partnerCounterpartyCorrespondentAccount: '',
   // Общие поля для файлов
-  hasFile: null,
+  file: null,
   
   // Поля для ошибок
   errorDescription: '',
@@ -6042,11 +6042,10 @@ const checkRequiredFieldsForCurrentStep = () => {
     }
   } else if (formData.object === '16961') { // Цены
     if (currentStep.value === 2) {
-      return !!formData.priceNomenclatureCode && 
-             !!formData.priceNomenclatureName && 
-             !!formData.priceType && 
-             !!formData.priceBefore && 
-             !!formData.priceAfter
+      return !!formData.priceBasis &&
+      !!formData.pricePeriodFrom &&
+      !!formData.pricePeriodTo &&
+      !!formData.priceChangeReason
     }
   }
   
@@ -7044,37 +7043,7 @@ const getAllRequestFields = () => {
     fields.push('\n=== ОПИСАНИЕ ОШИБКИ ===')
     fields.push(`Описание ошибки: ${formData.errorDescription}`)
   }
-  
-  // Информация о файлах
-  if (formData.hasFile && formData.hasFile.length > 0) {
-    fields.push('\n=== ФАЙЛЫ ===')
-    fields.push(`Количество файлов: ${formData.hasFile.length}`)
-  }
-  
-  if (formData.typicalAgreementBasisFile && formData.typicalAgreementBasisFile.length > 0) {
-    fields.push(`Файлы основания для типового соглашения: ${formData.typicalAgreementBasisFile.length}`)
-  }
-  
-  if (formData.individualAgreementBasisFile && formData.individualAgreementBasisFile.length > 0) {
-    fields.push(`Файлы основания для индивидуального соглашения: ${formData.individualAgreementBasisFile.length}`)
-  }
-  
-  if (formData.discountBasisFile && formData.discountBasisFile.length > 0) {
-    fields.push(`Файлы основания для скидки: ${formData.discountBasisFile.length}`)
-  }
-  
-  if (formData.priceBasisFile && formData.priceBasisFile.length > 0) {
-    fields.push(`Файлы основания для цены: ${formData.priceBasisFile.length}`)
-  }
-  
-  if (formData.complexHasFile && formData.complexHasFile.length > 0) {
-    fields.push(`Файлы для договора (17961): ${formData.complexHasFile.length}`)
-  }
-  
-  if (formData.combinedHasFile && formData.combinedHasFile.length > 0) {
-    fields.push(`Файлы для договора (17959): ${formData.combinedHasFile.length}`)
-  }
-  
+
   return fields.join('\n')
 }
 
@@ -7270,14 +7239,14 @@ const createBitrixRequest = async () => {
     // Обработка файлов для всех типов заявок
     let files = []
     
-    // Проверяем, есть ли файлы в поле hasFile
-    if (formData.hasFile && formData.hasFile.length > 0) {
-      files = await encodeFilesToBase64(formData.hasFile)
+    // Проверяем, есть ли файлы в поле file
+    if (formData.file && formData.file.length > 0) {
+      files = await encodeFilesToBase64(formData.file)
     }
-    
-    // Проверяем, есть ли файлы в complexHasFile для комплексных объектов
-    if (formData.complexHasFile && formData.complexHasFile.length > 0) {
-      const complexFiles = await encodeFilesToBase64(formData.complexHasFile)
+    console.log(files);
+    // Проверяем, есть ли файлы в complexFile для комплексных объектов
+    if (formData.complexFile && formData.complexFile.length > 0) {
+      const complexFiles = await encodeFilesToBase64(formData.complexFile)
       files = [...files, ...complexFiles]
     }
     
