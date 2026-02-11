@@ -649,9 +649,9 @@
                           <v-text-field
                             v-model="formData.phone"
                             label="Телефон"
-                            v-mask="'+7 (###) ###-##-##'"
-                            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+                            placeholder="Укажите номер в международном формате, например +79991234567"
                             :rules="phoneRules"
+                            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
                             :maxlength="20"
                             variant="outlined"
                             counter
@@ -735,9 +735,9 @@
                             <v-text-field
                               v-model="formData.phone"
                               label="Телефон"
-                              v-mask="'+7 (###) ###-##-##'"
-                              placeholder="Укажите: номер в формате +7 (999) 999 99 99"
+                              placeholder="Укажите: номер в международном формате, например +79991234567"
                               :rules="phoneRules"
+                              v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
                               :maxlength="25"
                               variant="outlined"
                               counter
@@ -760,6 +760,7 @@
                               :label="`Телефон ${index + 2}`"
                               placeholder="Введите дополнительный телефон..."
                               :rules="phoneRules"
+                              v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
                               :maxlength="25"
                               variant="outlined"
                               counter
@@ -942,8 +943,8 @@
                             <v-text-field
                               v-model="formData.phone"
                               label="Телефон"
-                              v-mask="'+7 (###) ###-##-##'"
-                              placeholder="Укажите: номер в формате +7 (999) 999 99 99"
+                              v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
+                              placeholder="Укажите номер в международном формате, например +79991234567"
                               :rules="phoneRules"
                               :maxlength="25"
                               variant="outlined"
@@ -967,6 +968,7 @@
                               :label="`Телефон ${index + 2}`"
                               placeholder="Введите дополнительный телефон..."
                               :rules="phoneRules"
+                              v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
                               :maxlength="25"
                               variant="outlined"
                               counter
@@ -1879,11 +1881,12 @@
                       ></v-text-field>
                       
                       <!-- Телефон -->
-                      <v-text-field
-                        v-model="formData.warehousePhone"
-                        label="Телефон склада"
-                        placeholder="Укажите: номер в формате +7 (999) 999 99 99"
-                        :rules="phoneRules"
+                        <v-text-field
+                          v-model="formData.warehousePhone"
+                          label="Телефон склада"
+                          placeholder="Укажите: номер в международном формате, например +79991234567"
+                          :rules="phoneRules"
+                          v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
                         :maxlength="20"
                         variant="outlined"
                         counter
@@ -2508,12 +2511,12 @@
     
     <!-- Телефон -->
     <v-text-field
-      v-model="formData.complexPhone"
-      label="Телефон"
-      v-mask="'+7 (###) ###-##-##'"
-      placeholder="Укажите номер в формате +7 (999) 999 99 99"
-      :rules="phoneRules"
-      :maxlength="20"
+        v-model="formData.complexPhone"
+        label="Телефон"
+        placeholder="Укажите номер в международном формате, например +79991234567"
+        :rules="phoneRules"
+        v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
+        :maxlength="20"
       variant="outlined"
       counter
       class="mb-4"
@@ -2862,9 +2865,9 @@
           <v-text-field
             v-model="formData.combinedPhone"
             label="Телефон"
-            v-mask="'+7 (###) ###-##-##'"
-            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+            placeholder="Укажите номер в международном формате, например +79991234567"
             :rules="phoneRules"
+            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
             :maxlength="25"
             variant="outlined"
             counter
@@ -2887,6 +2890,7 @@
             :label="`Телефон ${index + 2}`"
             placeholder="Введите дополнительный телефон..."
             :rules="phoneRules"
+            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
             :maxlength="25"
             variant="outlined"
             counter
@@ -3069,9 +3073,9 @@
           <v-text-field
             v-model="formData.combinedPhone"
             label="Телефон"
-            v-mask="'+7 (###) ###-##-##'"
-            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+            placeholder="Укажите номер в международном формате, например +79991234567"
             :rules="phoneRules"
+            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
             :maxlength="25"
             variant="outlined"
             counter
@@ -3094,6 +3098,7 @@
             :label="`Телефон ${index + 2}`"
             placeholder="Введите дополнительный телефон..."
             :rules="phoneRules"
+            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
             :maxlength="25"
             variant="outlined"
             counter
@@ -3373,9 +3378,9 @@
     <v-text-field
       v-model="formData.combinedCounterpartyPhone"
       label="Телефон"
-      v-mask="'+7 (###) ###-##-##'"
-      placeholder="Укажите номер в формате +7 (999) 999 99 99"
+      placeholder="Укажите номер в международном формате, например +79991234567"
       :rules="phoneRules"
+      v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
       :maxlength="20"
       variant="outlined"
       counter
@@ -3492,8 +3497,8 @@
     label="Валюта"
     placeholder="Выберите валюту счета"
     :rules="[v => !!v || 'Валюта обязательна']"
-    item-title="title"
-    item-value="id"
+    item-title="FULL_NAME"
+    item-value="CURRENCY"
     variant="outlined"
     required
     class="mb-4"
@@ -3830,9 +3835,9 @@
           <v-text-field
             v-model="formData.partnerCounterpartyPhone"
             label="Телефон"
-            v-mask="'+7 (###) ###-##-##'"
-            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+            placeholder="Укажите номер в международном формате, например +79991234567"
             :rules="phoneRules"
+            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
             :maxlength="25"
             variant="outlined"
             counter
@@ -3855,6 +3860,7 @@
             :label="`Телефон ${index + 2}`"
             placeholder="Введите дополнительный телефон..."
             :rules="phoneRules"
+            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
             :maxlength="25"
             variant="outlined"
             counter
@@ -4037,9 +4043,9 @@
           <v-text-field
             v-model="formData.partnerCounterpartyPhone"
             label="Телефон"
-            v-mask="'+7 (###) ###-##-##'"
-            placeholder="Укажите номер в формате +7 (999) 999 99 99"
+            placeholder="Укажите номер в международном формате, например +79991234567"
             :rules="phoneRules"
+            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
             :maxlength="25"
             variant="outlined"
             counter
@@ -4062,6 +4068,7 @@
             :label="`Телефон ${index + 2}`"
             placeholder="Введите дополнительный телефон..."
             :rules="phoneRules"
+            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
             :maxlength="25"
             variant="outlined"
             counter
@@ -4342,9 +4349,9 @@
     <v-text-field
       v-model="formData.partnerCounterpartyPhone2"
       label="Телефон"
-      v-mask="'+7 (###) ###-##-##'"
-      placeholder="Укажите номер в формате +7 (999) 999 99 99"
+      placeholder="Укажите номер в международном формате, например +79991234567"
       :rules="phoneRules"
+      v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
       :maxlength="20"
       variant="outlined"
       counter
@@ -4461,8 +4468,8 @@
     label="Валюта"
     placeholder="Выберите валюту счета"
     :rules="[v => !!v || 'Валюта обязательна']"
-    item-title="title"
-    item-value="id"
+      item-title="FULL_NAME"
+      item-value="CURRENCY"
     variant="outlined"
     required
     class="mb-4"
@@ -5704,16 +5711,11 @@ const okpoRules = [
 const phoneRules = [
   v => !!v || 'Телефон обязателен',
   v => {
-    // Убираем все нецифровые символы для проверки
-    const cleanPhone = v ? v.replace(/\D/g, '') : ''
-    return cleanPhone.length >= 8 && cleanPhone.length <= 12 || 'Телефон должен содержать от 8 до 12 цифр'
-  },
-  v => {
     if (!v) return true
-    // Проверяем формат: +7, 8, или начинается с цифры
-    const cleanPhone = v.replace(/\D/g, '')
-    const isValidStart = /^[78]/.test(cleanPhone) || cleanPhone.length === 10
-    return isValidStart || 'Телефон должен начинаться с +7, 8 или содержать 10 цифр'
+    // Убираем пробелы, скобки и дефисы для проверки международного формата
+    const normalizedPhone = v.replace(/[\s()-]/g, '')
+    const isValidInternational = /^\+[1-9]\d{6,14}$/.test(normalizedPhone)
+    return isValidInternational || 'Введите телефон в международном формате, например +79991234567'
   }
 ]
 
