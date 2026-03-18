@@ -646,17 +646,13 @@
                           ></v-text-field>
                           
                           <!-- Телефон -->
-                          <v-text-field
+                          <PhoneInput
                             v-model="formData.phone"
                             label="Телефон"
                             placeholder="Укажите номер в международном формате, например +79991234567"
-                            :rules="phoneRules"
-                            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-                            :maxlength="20"
-                            variant="outlined"
-                            counter
-                            class="mb-4"
-                          ></v-text-field>
+                            :ui-kit="'vuetify'"
+                            :default-rules="phoneRules"
+                          ></PhoneInput>
                           
                           <!-- Электронная почта -->
                           <v-text-field
@@ -732,17 +728,14 @@
                         <!-- Телефон (множественное) -->
                         <div class="mb-4">
                           <div class="d-flex align-center mb-2">
-                            <v-text-field
+                            <PhoneInput
                               v-model="formData.phone"
                               label="Телефон"
                               placeholder="Укажите: номер в международном формате, например +79991234567"
-                              :rules="phoneRules"
-                              v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-                              :maxlength="25"
-                              variant="outlined"
-                              counter
+                              ui-kit="vuetify"
+                              :default-rules="phoneRules"
                               class="flex-grow-1 mr-2"
-                            ></v-text-field>
+                            />
                             <v-btn
                               color="primary"
                               variant="tonal"
@@ -755,17 +748,14 @@
                           
                           <!-- Дополнительные телефоны -->
                           <div v-for="(phone, index) in formData.additionalPhones" :key="index" class="d-flex align-center mb-2">
-                            <v-text-field
+                            <PhoneInput
                               v-model="formData.additionalPhones[index]"
                               :label="`Телефон ${index + 2}`"
                               placeholder="Введите дополнительный телефон..."
-                              :rules="phoneRules"
-                              v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-                              :maxlength="25"
-                              variant="outlined"
-                              counter
+                              ui-kit="vuetify"
+                              :default-rules="phoneRules"
                               class="flex-grow-1 mr-2"
-                            ></v-text-field>
+                            />
                             <v-btn
                               color="error"
                               variant="tonal"
@@ -940,17 +930,14 @@
                         <!-- Телефон (множественное) -->
                         <div class="mb-4">
                           <div class="d-flex align-center mb-2">
-                            <v-text-field
+                            <PhoneInput
                               v-model="formData.phone"
                               label="Телефон"
-                              v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
                               placeholder="Укажите номер в международном формате, например +79991234567"
-                              :rules="phoneRules"
-                              :maxlength="25"
-                              variant="outlined"
-                              counter
+                              ui-kit="vuetify"
+                              :default-rules="phoneRules"
                               class="flex-grow-1 mr-2"
-                            ></v-text-field>
+                            />
                             <v-btn
                               color="primary"
                               variant="tonal"
@@ -963,17 +950,14 @@
                           
                           <!-- Дополнительные телефоны -->
                           <div v-for="(phone, index) in formData.additionalPhones" :key="index" class="d-flex align-center mb-2">
-                            <v-text-field
+                            <PhoneInput
                               v-model="formData.additionalPhones[index]"
                               :label="`Телефон ${index + 2}`"
                               placeholder="Введите дополнительный телефон..."
-                              :rules="phoneRules"
-                              v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-                              :maxlength="25"
-                              variant="outlined"
-                              counter
+                              ui-kit="vuetify"
+                              :default-rules="phoneRules"
                               class="flex-grow-1 mr-2"
-                            ></v-text-field>
+                            />
                             <v-btn
                               color="error"
                               variant="tonal"
@@ -1881,17 +1865,13 @@
                       ></v-text-field>
                       
                       <!-- Телефон -->
-                        <v-text-field
+                        <PhoneInput
                           v-model="formData.warehousePhone"
                           label="Телефон склада"
                           placeholder="Укажите: номер в международном формате, например +79991234567"
-                          :rules="phoneRules"
-                          v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-                        :maxlength="20"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
+                          ui-kit="vuetify"
+                          :default-rules="phoneRules"
+                        />
                       
                       <!-- Комментарий -->
                       <v-textarea
@@ -1919,19 +1899,7 @@
                         variant="outlined"
                         class="mb-4"
                       ></v-file-input>
-                      
-                      <!-- Склад (код) -->
-                      <v-text-field
-                        v-model="formData.warehouseCode"
-                        label="Склад (код)"
-                        placeholder="Укажите: код из 1С ERP"
-                        :rules="[v => !!v || 'Код склада обязателен']"
-                        :maxlength="20"
-                        variant="outlined"
-                        counter
-                        class="mb-4"
-                      ></v-text-field>
-                      
+
                       <!-- Наименование склада (дополнительное) -->
                       <v-text-field
                         v-model="formData.warehouseNameSecondary"
@@ -2510,17 +2478,14 @@
     ></v-text-field>
     
     <!-- Телефон -->
-    <v-text-field
+    <PhoneInput
         v-model="formData.complexPhone"
         label="Телефон"
         placeholder="Укажите номер в международном формате, например +79991234567"
-        :rules="phoneRules"
-        v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-        :maxlength="20"
-      variant="outlined"
-      counter
-      class="mb-4"
-    ></v-text-field>
+        ui-kit="vuetify"
+        :default-rules="phoneRules"
+        class="mb-4"
+      />
     
     <!-- Электронная почта -->
     <v-text-field
@@ -2861,27 +2826,24 @@
       ></v-text-field>
       <!-- Телефон (множественное) -->
       <div class="mb-4">
-        <div class="d-flex align-center mb-2">
-          <v-text-field
-            v-model="formData.combinedPhone"
-            label="Телефон"
-            placeholder="Укажите номер в международном формате, например +79991234567"
-            :rules="phoneRules"
-            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-            :maxlength="25"
-            variant="outlined"
-            counter
-            class="flex-grow-1 mr-2"
-          ></v-text-field>
-          <v-btn
-            color="primary"
-            variant="tonal"
-            size="small"
-            @click="addCombinedPhoneField"
-          >
-            <v-icon>mdi-plus</v-icon>
-          </v-btn>
-        </div>
+                          <div class="d-flex align-center mb-2">
+                            <PhoneInput
+                              v-model="formData.combinedPhone"
+                              label="Телефон"
+                              placeholder="Укажите номер в международном формате, например +79991234567"
+                              ui-kit="vuetify"
+                              :default-rules="phoneRules"
+                              class="flex-grow-1 mr-2"
+                            />
+                            <v-btn
+                              color="primary"
+                              variant="tonal"
+                              size="small"
+                              @click="addCombinedPhoneField"
+                            >
+                              <v-icon>mdi-plus</v-icon>
+                            </v-btn>
+                          </div>
         
         <!-- Дополнительные телефоны -->
         <div v-for="(phone, index) in formData.combinedAdditionalPhones" :key="index" class="d-flex align-center mb-2">
@@ -2890,8 +2852,8 @@
             :label="`Телефон ${index + 2}`"
             placeholder="Введите дополнительный телефон..."
             :rules="phoneRules"
-            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-            :maxlength="25"
+            v-mask="['+# (###) ### - ## - ##']"
+            :maxlength="22"
             variant="outlined"
             counter
             class="flex-grow-1 mr-2"
@@ -3075,8 +3037,8 @@
             label="Телефон"
             placeholder="Укажите номер в международном формате, например +79991234567"
             :rules="phoneRules"
-            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-            :maxlength="25"
+            v-mask="['+# (###) ### - ## - ##']"
+            :maxlength="22"
             variant="outlined"
             counter
             class="flex-grow-1 mr-2"
@@ -3098,8 +3060,8 @@
             :label="`Телефон ${index + 2}`"
             placeholder="Введите дополнительный телефон..."
             :rules="phoneRules"
-            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-            :maxlength="25"
+            v-mask="['+# (###) ### - ## - ##']"
+            :maxlength="22"
             variant="outlined"
             counter
             class="flex-grow-1 mr-2"
@@ -3375,17 +3337,14 @@
     ></v-text-field>
     
     <!-- Телефон -->
-    <v-text-field
+    <PhoneInput
       v-model="formData.combinedCounterpartyPhone"
       label="Телефон"
       placeholder="Укажите номер в международном формате, например +79991234567"
-      :rules="phoneRules"
-      v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-      :maxlength="20"
-      variant="outlined"
-      counter
+      ui-kit="vuetify"
+      :default-rules="phoneRules"
       class="mb-4"
-    ></v-text-field>
+    />
     
     <!-- Электронная почта -->
     <v-text-field
@@ -3837,8 +3796,8 @@
             label="Телефон"
             placeholder="Укажите номер в международном формате, например +79991234567"
             :rules="phoneRules"
-            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-            :maxlength="25"
+            v-mask="['+# (###) ### - ## - ##']"
+            :maxlength="22"
             variant="outlined"
             counter
             class="flex-grow-1 mr-2"
@@ -3860,8 +3819,8 @@
             :label="`Телефон ${index + 2}`"
             placeholder="Введите дополнительный телефон..."
             :rules="phoneRules"
-            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-            :maxlength="25"
+            v-mask="['+# (###) ### - ## - ##']"
+            :maxlength="22"
             variant="outlined"
             counter
             class="flex-grow-1 mr-2"
@@ -4045,8 +4004,8 @@
             label="Телефон"
             placeholder="Укажите номер в международном формате, например +79991234567"
             :rules="phoneRules"
-            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-            :maxlength="25"
+            v-mask="['+# (###) ### - ## - ##']"
+            :maxlength="22"
             variant="outlined"
             counter
             class="flex-grow-1 mr-2"
@@ -4068,8 +4027,8 @@
             :label="`Телефон ${index + 2}`"
             placeholder="Введите дополнительный телефон..."
             :rules="phoneRules"
-            v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-            :maxlength="25"
+            v-mask="['+# (###) ### - ## - ##']"
+            :maxlength="22"
             variant="outlined"
             counter
             class="flex-grow-1 mr-2"
@@ -4346,17 +4305,14 @@
     ></v-text-field>
     
     <!-- Телефон -->
-    <v-text-field
+    <PhoneInput
       v-model="formData.partnerCounterpartyPhone2"
       label="Телефон"
       placeholder="Укажите номер в международном формате, например +79991234567"
-      :rules="phoneRules"
-      v-mask="['+# (###) ### - ## - ##', '+## (###) ### - ## - ##', '+### (###) ### - ## - ##']"
-      :maxlength="20"
-      variant="outlined"
-      counter
+      ui-kit="vuetify"
+      :default-rules="phoneRules"
       class="mb-4"
-    ></v-text-field>
+    />
     
     <!-- Электронная почта -->
     <v-text-field
@@ -4567,6 +4523,8 @@ import { ref, computed, reactive, onMounted } from 'vue'
 import { callApi, getListElements } from '../functions/callApi'
 import { mask } from 'vue-the-mask'
 import LoadingProgress from '../components/LoadingProgress.vue'
+import PhoneInput from '../components/form/PhoneInput.vue'
+
 
 const isLoading = ref(true)
 const loadingMessage = ref('Инициализация формы...')
@@ -4760,7 +4718,6 @@ const formData = reactive({
   warehouseAddress: '',
   warehousePhone: '',
   warehouseComment: '',
-  warehouseCode: '',
   warehouseNameSecondary: '',
   
   // Поля для объекта "Упаковки" (16947)
@@ -5966,7 +5923,6 @@ const checkRequiredFieldsForCurrentStep = () => {
   } else if (formData.object === '17957') { // Индивидуальные соглашения
     if (currentStep.value === 2) {
       return !!formData.individualAgreementName && 
-            !!formData.individualAgreementPartnerCode && 
             !!formData.individualAgreementPartner && 
             !!formData.individualAgreementOrganization && 
             !!formData.individualAgreementOperation
@@ -6026,9 +5982,11 @@ const checkRequiredFieldsForCurrentStep = () => {
     }
   } else if (formData.object === '16945') { // Склады
     if (currentStep.value === 2) {
-      return !!formData.warehouseType && 
-             !!formData.warehouseName && 
-             !!formData.warehouseCode
+      return !!formData.warehouseType &&
+        !! formData.warehouseAddress &&
+        !! formData.warehousePhone &&
+        !! formData.warehouseType &&
+        !! formData.warehouseGroup
     }
   } else if (formData.object === '16947') { // Упаковки
     if (currentStep.value === 2) {
@@ -6510,7 +6468,6 @@ const getAllRequestFields = () => {
     if (formData.warehouseAddress) fields.push(`Адрес склада: ${formData.warehouseAddress}`)
     if (formData.warehousePhone) fields.push(`Телефон склада: ${formData.warehousePhone}`)
     if (formData.warehouseComment) fields.push(`Комментарий: ${formData.warehouseComment}`)
-    if (formData.warehouseCode) fields.push(`Склад (код): ${formData.warehouseCode}`)
     if (formData.warehouseNameSecondary) fields.push(`Наименование склада (дополнительное): ${formData.warehouseNameSecondary}`)
   }
   
@@ -7243,12 +7200,12 @@ const createBitrixRequest = async () => {
     if (formData.file && formData.file.length > 0) {
       files = await encodeFilesToBase64(formData.file)
     }
-    console.log(files);
+    console.log(files);/*
     // Проверяем, есть ли файлы в complexFile для комплексных объектов
     if (formData.complexFile && formData.complexFile.length > 0) {
       const complexFiles = await encodeFilesToBase64(formData.complexFile)
       files = [...files, ...complexFiles]
-    }
+    }*/
     
     // Добавляем файлы в поля запроса, если они есть
     if (files.length > 0) {
@@ -7315,7 +7272,7 @@ const submitForm = async () => {
     const createResponse = await createBitrixRequest()
     const itemId = createResponse.data().item.id
     
-    await addTimelineComment(itemId)
+    //await addTimelineComment(itemId)
     const portalUrl = typeof BX24 !== 'undefined' 
       ? BX24.getDomain() 
       : window.location.origin;

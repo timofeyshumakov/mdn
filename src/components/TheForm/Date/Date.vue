@@ -1,10 +1,10 @@
 <template lang="pug">
     v-autocomplete(
+        variant="outlined"
         :modelValue="selectedDateName"
         :items="dateNames"
-        label="Выберите период"
+        label="Выберите дату"
         @update:modelValue="handleOptionChange"
-        variant="outlined"
     )
     NumberInput(
         :showInput="showInput[0]" 
@@ -71,8 +71,8 @@ export default {
           const selectedRange = [moment()._d, moment()._d];
 
         return {
-            dateNames: ["Любая дата", "Сегодня", "Вчера", "Текущая неделя", "Текущий месяц", "Текущий квартал", "Текущий год", "Прошлая неделя", "Прошлый месяц", "Прошлый квартал", "Прошлый год", "Последние 7 дней", "Последние 30 дней", "Последние 60 дней", "Последние 90 дней", "Последние N дней", "Следующие 7 дней", "Следующие 30 дней", "Следующие 60 дней", "Следующие 90 дней", "Следующие N дней", "Следующая неделя", "Следующий месяц", "Следующий квартал", "Следующий год", "Месяц", "Квартал", "Год", "Точная дата", "Диапазон"],
-            selectedDateName: "Текущая неделя",
+            dateNames: ["Любая дата", "Сегодня", "Вчера", "Текущая неделя", "Текущий месяц", "Текущий квартал", "Текущий год", "Прошлая неделя", "Прошлый месяц", "Прошлый квартал", "Прошлый год", "Последние 7 дней", "Последние 30 дней", "Последние 60 дней", "Последние 90 дней", "Последние N дней", "Месяц", "Квартал", "Год", "Точная дата", "Диапазон"],
+            selectedDateName: "Последние 30 дней",
             showInput: this.showInput,
             maxDaysAhead: maxDaysAhead,
             maxDaysAgo: maxDaysAgo,
@@ -89,11 +89,8 @@ export default {
             selectedDay: selectedDay,
             selectedRange: selectedRange,
             selectedDate: [],
-            selectedDateIso: [null, null],
+            selectedDateIso: this.selectedDateIso,
         }
-    },
-    mounted(){
-        this.update();
     },
     methods: {
         handleOptionChange(selectedDateName){
@@ -251,5 +248,8 @@ export default {
             this.$emit('sendValue', this.selectedDateIso);
         },
     },
+    mounted(){
+        this.handleOptionChange(this.selectedDateName)
+    }
 }
 </script>

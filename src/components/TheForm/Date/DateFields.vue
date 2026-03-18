@@ -1,5 +1,5 @@
 <template lang="pug">
-    .date-fields( :style="{ display: showInput[3] || showInput[2] || showInput[1] ? 'grid' : 'none' }")
+    .date-fields( :style="{ display: showInput[3] || showInput[2] || showInput[1] || showInput[4] || showInput[5] ? 'grid' : 'none' }")
       v-autocomplete(
         v-if="showInput[1]"
         :items="monthNames"

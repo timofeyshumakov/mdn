@@ -12,10 +12,10 @@
     )
       template(#prepend)
         v-btn(@click="decrement" icon)
-          v-icon(icon="mdi-minus-circle" color="primary" class="button-icon")
+          v-icon(icon="minus-circle" color="primary" class="button-icon")
       template(#append)
         v-btn(@click="increment" icon)
-          v-icon(icon="mdi-plus-circle" color="primary" class="button-icon")
+          v-icon(icon="plus-circle" color="primary" class="button-icon")
 </template>
   
 <script>
@@ -96,6 +96,4 @@ export default {
   .button-icon
     transform: scale(2) !important
 
-  #app .v-input
-    display: flex !important
 </style>
